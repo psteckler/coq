@@ -153,7 +153,7 @@ let declare_tactic_argument loc s (typ, pr, f, g, h) cl =
         <:expr< fun ist v -> (ist, v) >>
       | _ ->
         <:expr< fun ist v ->
-          let ans = out_gen $make_globwit loc rawtyp$
+          let ans = Genarg.out_gen $make_globwit loc rawtyp$
           (Tacintern.intern_genarg ist
           (Genarg.in_gen $make_rawwit loc rawtyp$ v)) in
           (ist, ans) >>
@@ -173,7 +173,7 @@ let declare_tactic_argument loc s (typ, pr, f, g, h) cl =
               (Tacmach.pf_env gl) (Tacmach.project gl) (Tacmach.pf_concl gl) gl.Evd.it
                (Genarg.in_gen $make_globwit loc globtyp$ x)
 	  in
-          (sigma , out_gen $make_topwit loc globtyp$ a_interp)>>
+          (sigma , Genarg.out_gen $make_topwit loc globtyp$ a_interp)>>
       end
     | Some f -> <:expr< $lid:f$>> in
   let subst = match h with
@@ -183,7 +183,7 @@ let declare_tactic_argument loc s (typ, pr, f, g, h) cl =
         <:expr< fun s v -> v >>
       | _ ->
         <:expr< fun s x ->
-          out_gen $make_globwit loc globtyp$
+          Genarg.out_gen $make_globwit loc globtyp$
           (Tacsubst.subst_genarg s
             (Genarg.in_gen $make_globwit loc globtyp$ x)) >>
       end
