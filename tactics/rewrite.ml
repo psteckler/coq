@@ -1559,7 +1559,7 @@ let assert_replacing id newt tac =
 let newfail n s = 
   Proofview.tclZERO (Refiner.FailError (n, lazy s))
 
-let cl_rewrite_clause_newtac ?abs ?origsigma debug ~progress strat clause = 
+let rec cl_rewrite_clause_newtac_ORIG ?abs ?origsigma debug ~progress strat clause = 
   let open Proofview.Notations in
   let treat sigma res = 
     match res with
@@ -1627,12 +1627,23 @@ let cl_rewrite_clause_newtac ?abs ?origsigma debug ~progress strat clause =
     | PretypeError (env, evd, (UnsatisfiableConstraints _ as e)) ->
       raise (RewriteFailure (Himsg.explain_pretype_error env evd e))
   end
+and cl_rewrite_clause_newtac ?abs ?origsigma debug ~progress strat clause = 
+  let name = "cl_rewrite_clause_newtac" in
+  let _ = Timer.start_timer name in
+  try
+    let result = cl_rewrite_clause_newtac_ORIG ?abs ?origsigma debug ~progress strat clause in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let tactic_init_setoid () = 
   try init_setoid (); tclIDTAC
   with e when Errors.noncritical e -> tclFAIL 0 (str"Setoid library not loaded")
 
-let cl_rewrite_clause_strat debug progress strat clause = 
+let rec cl_rewrite_clause_strat_ORIG debug progress strat clause = 
   tclTHEN (tactic_init_setoid ())
   ((if progress then tclWEAK_PROGRESS else fun x -> x)
    (fun gl -> 
@@ -1642,6 +1653,18 @@ let cl_rewrite_clause_strat debug progress strat clause =
 	 errorlabstrm "" (str"setoid rewrite failed: " ++ e)
        | Refiner.FailError (n, pp) -> 
 	  tclFAIL n (str"setoid rewrite failed: " ++ Lazy.force pp) gl))
+and cl_rewrite_clause_strat debug progress strat clause = 
+  let name = "cl_rewrite_clause_strat" in
+  let _ = Timer.start_timer name in
+  try
+    let result = cl_rewrite_clause_strat_ORIG debug progress strat clause in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
+
 
 type debug_flag = bool
 
@@ -2053,7 +2076,7 @@ let general_rewrite_flags = { under_lambdas = false; on_morphisms = true }
 (* let cl_rewrite_clause_tac = Profile.profile5 rewriteclaustac_key cl_rewrite_clause_tac *)
 
 (** Setoid rewriting when called with "rewrite" *)
-let general_s_rewrite cl l2r occs (c,l) ~new_goals gl =
+let rec general_s_rewrite_ORIG cl l2r occs (c,l) ~new_goals gl =
   let abs, evd, res, sort = get_hyp gl (c,l) cl l2r in
   let unify env evars t = unify_abs res l2r sort env evars t in
   let app = apply_rule unify occs in
@@ -2070,13 +2093,22 @@ let general_s_rewrite cl l2r occs (c,l) ~new_goals gl =
       tclWEAK_PROGRESS 
 	(tclTHEN
            (Refiner.tclEVARS evd)
-
-
 	   (Proofview.V82.of_tactic
 	      (cl_rewrite_clause_newtac ~progress:true ~abs:(Some abs)
 	         ~origsigma false strat cl))) gl
     with RewriteFailure e ->
       tclFAIL 0 (str"setoid rewrite failed: " ++ e) gl
+and general_s_rewrite cl l2r occs (c,l) ~new_goals gl =
+  let name = "general_s_rewrite" in
+  let _ = Timer.start_timer name in
+  try
+    let result = general_s_rewrite_ORIG cl l2r occs (c,l) ~new_goals gl in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let general_s_rewrite_clause x =
   match x with

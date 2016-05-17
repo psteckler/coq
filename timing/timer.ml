@@ -182,7 +182,7 @@ let indent ?(ch = '|') n =
   done;
   Printf.printf "%d -> " n
 
-let interesting_procedures = [ "cl_rewrite_clause" ]
+let interesting_procedures = [ "cl_rewrite_clause"; "general_s_rewrite" ]
 
 let is_tactic_app nm =
   let len = String.length nm in
