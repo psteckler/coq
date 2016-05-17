@@ -139,7 +139,6 @@ let progress_evars t =
     in t <*> check
   end
 
-
 let e_give_exact flags poly (c,clenv) gl =
   let (c, _, _) = c in
   let c, gl =
@@ -153,15 +152,37 @@ let e_give_exact flags poly (c,clenv) gl =
   let t1 = pf_unsafe_type_of gl c in
     tclTHEN (Proofview.V82.of_tactic (Clenvtac.unify ~flags t1)) (exact_no_check c) gl
 
-let unify_e_resolve poly flags (c,clenv) gls =
+let rec unify_e_resolve_ORIG poly flags (c,clenv) gls =
   let clenv', c = connect_hint_clenv poly c clenv gls in
   let clenv' = Tacmach.New.of_old (clenv_unique_resolver ~flags clenv') gls in
     Clenvtac.clenv_refine true ~with_classes:false clenv'
+and unify_e_resolve poly flags (c,clenv) gls =
+  let name = "unify_e_resolve" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_e_resolve_ORIG poly flags (c,clenv) gls in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
-let unify_resolve poly flags (c,clenv) gls =
+let rec unify_resolve_ORIG poly flags (c,clenv) gls =
   let clenv', _ = connect_hint_clenv poly c clenv gls in
   let clenv' = Tacmach.New.of_old (clenv_unique_resolver ~flags clenv') gls in
     Clenvtac.clenv_refine false ~with_classes:false clenv'
+and unify_resolve poly flags (c,clenv) gls =
+  let name = "unify_resolve" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_resolve_ORIG poly flags (c,clenv) gls in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let clenv_of_prods poly nprods (c, clenv) gl =
   let (c, _, _) = c in
@@ -415,10 +436,30 @@ let hints_tac hints =
       let rec aux i foundone = function
       | (tac, _, b, name, pp) :: tl ->
 	let derivs = path_derivate info.auto_cut name in
-	let res =
-          try
-	    if path_matches derivs [] then None else Some (tac tacgl)
-	  with e when catchable e -> None
+	let res = 
+	  if not !typeclasses_debug then (
+            try
+              if path_matches derivs [] then None else Some (tac tacgl)
+            with e when catchable e -> None
+	  )
+	  else (
+            let name = Pp.string_of_ppcmds (Lazy.force pp) in
+	    let _ = Printf.printf "Applying tactic: %s\n" name in
+	    let _ = Timer.start_timer name in
+            try
+	      if path_matches derivs [] then None else Some (
+		let result = tac tacgl in
+		let _ = Timer.stop_timer name in 
+		result)
+	    with 
+	    | e when catchable e -> 
+	      let _ = Timer.stop_timer name in 
+	      let _ = Printf.printf "Tactic failed: %s\n" name in
+	      None
+	    | e1 -> 
+	      let _ = Timer.stop_timer name in 
+	      raise e1
+	  )
 	in
 	  (match res with
 	  | None -> aux i foundone tl
@@ -770,8 +811,19 @@ let resolve_typeclass_evars debug m unique env evd filter split fail =
   in
     resolve_all_evars debug m unique env (initial_select_evars filter) evd split fail
 
-let solve_inst debug depth env evd filter unique split fail =
+let rec solve_inst_ORIG debug depth env evd filter unique split fail =
   resolve_typeclass_evars debug depth unique env evd filter split fail
+and solve_inst debug depth env evd filter unique split fail =
+  let name = "solve_inst" in
+  let _ = Timer.start_timer name in
+  try
+    let result = solve_inst_ORIG debug depth env evd filter unique split fail in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let _ =
   Typeclasses.solve_instantiations_problem :=

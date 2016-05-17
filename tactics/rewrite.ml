@@ -464,7 +464,7 @@ let rec decompose_app_rel env evd t =
     mkApp (f, fargs), args.(len - 2), args.(len - 1)
   | _ -> error "Cannot find a relation to rewrite."
 
-let decompose_applied_relation env sigma (c,l) =
+let rec decompose_applied_relation_ORIG env sigma (c,l) =
   let ctype = Retyping.get_type_of env sigma c in
   let find_rel ty =
     let sigma, cl = Clenv.make_evar_clause env sigma ty in
@@ -490,6 +490,17 @@ let decompose_applied_relation env sigma (c,l) =
 	match find_rel (it_mkProd_or_LetIn t' (List.map (fun (n,t) -> n, None, t) ctx)) with
 	| Some c -> c
 	| None -> error "Cannot find an homogeneous relation to rewrite."
+and decompose_applied_relation env sigma (c,l) =
+  let name = "decompose_applied_relation" in
+  let _ = Timer.start_timer name in
+  try
+    let result = decompose_applied_relation_ORIG env sigma (c,l) in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let rewrite_db = "rewrite"
 
@@ -663,7 +674,7 @@ let symmetry env sort rew =
   { rew with rew_from = rew.rew_to; rew_to = rew.rew_from; rew_prf; rew_evars; }
 
 (* Matching/unifying the rewriting rule against [t] *)
-let unify_eqn (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
+let rec unify_eqn_ORIG (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
   try
     let left = if l2r then c1 else c2 in
     let sigma = Unification.w_unify ~flags env sigma CONV left t in
@@ -685,6 +696,17 @@ let unify_eqn (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) 
   with 
   | e when Class_tactics.catchable e -> None
   | Reduction.NotConvertible -> None
+and unify_eqn (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
+  let name = "unify_eqn" in
+  let _ = Timer.start_timer name in
+  try 
+    let result = unify_eqn_ORIG (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let unify_abs (car, rel, prf, c1, c2) l2r sort env (sigma, cstrs) t =
   try
@@ -1417,12 +1439,23 @@ let rewrite_with l2r flags c occs : strategy = { strategy =
     ((), res)
 					       }
 
-let apply_strategy (s : strategy) env unfresh concl (prop, cstr) evars =
+let rec apply_strategy_ORIG (s : strategy) env unfresh concl (prop, cstr) evars =
   let ty = Retyping.get_type_of env (goalevars evars) concl in
   let _, res = s.strategy { state = () ; env ; unfresh ;
 			    term1 = concl ; ty1 = ty ;
 			    cstr = (prop, Some cstr) ; evars } in
   res
+and apply_strategy (s : strategy) env unfresh concl (prop, cstr) evars =
+  let name = "apply_strategy" in
+  let _ = Timer.start_timer name in
+  try 
+    let result = apply_strategy_ORIG s env unfresh concl (prop, cstr) evars in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let solve_constraints env (evars,cstrs) =
   let filter = all_constraints cstrs in
@@ -1613,9 +1646,20 @@ let cl_rewrite_clause_strat debug progress strat clause =
 type debug_flag = bool
 
 (** Setoid rewriting when called with "setoid_rewrite" *)
-let cl_rewrite_clause debug l left2right occs clause gl =
+let rec cl_rewrite_clause_ORIG debug l left2right occs clause gl =
   let strat = rewrite_with left2right (general_rewrite_unif_flags ()) l occs in
     cl_rewrite_clause_strat debug true strat clause gl
+and cl_rewrite_clause debug l left2right occs clause gl =
+  let name = "cl_rewrite_clause" in
+  let _ = Timer.start_timer name in
+  try 
+    let result = cl_rewrite_clause_ORIG debug l left2right occs clause gl in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 (** Setoid rewriting when called with "rewrite_strat" *)
 let cl_rewrite_clause_strat debug strat clause =

@@ -140,7 +140,7 @@ si après Intros la conclusion matche le pattern.
 
 let (forward_interp_tactic, extern_interp) = Hook.make ()
 
-let conclPattern concl pat tac =
+let rec conclPattern_ORIG concl pat tac =
   let constr_bindings env sigma =
     match pat with
     | None -> Proofview.tclUNIT Id.Map.empty
@@ -155,6 +155,17 @@ let conclPattern concl pat tac =
      let sigma = Proofview.Goal.sigma gl in
        constr_bindings env sigma >>= fun constr_bindings ->
      Hook.get forward_interp_tactic constr_bindings tac)
+and conclPattern concl pat tac =
+  let name = "conclPattern" in
+  let _ = Timer.start_timer name in
+  try
+    let result = conclPattern_ORIG concl pat tac in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 (***********************************************************)
 (** A debugging / verbosity framework for trivial and auto *)

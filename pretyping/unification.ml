@@ -1642,7 +1642,7 @@ let keyed_unify env evd kop =
 (* Tries to find an instance of term [cl] in term [op].
    Unifies [cl] to every subterm of [op] until it finds a match.
    Fails if no match is found *)
-let w_unify_to_subterm env evd ?(flags=default_unify_flags ()) (op,cl) =
+let rec w_unify_to_subterm_ORIG env evd ?(flags=default_unify_flags ()) (op,cl) =
   let bestexn = ref None in
   let kop = Keys.constr_key op in
   let rec matchrec cl =
@@ -1713,11 +1713,22 @@ let w_unify_to_subterm env evd ?(flags=default_unify_flags ()) (op,cl) =
     match !bestexn with
     | None -> raise (PretypeError (env,evd,NoOccurrenceFound (op, None)))
     | Some e -> raise e
+and w_unify_to_subterm env evd ?(flags=default_unify_flags ()) (op,cl) =
+  let name = "w_unify_to_subterm" in
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_to_subterm_ORIG env evd ~flags (op,cl) in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 (* Tries to find all instances of term [cl] in term [op].
    Unifies [cl] to every subterm of [op] and return all the matches.
    Fails if no match is found *)
-let w_unify_to_subterm_all env evd ?(flags=default_unify_flags ()) (op,cl) =
+let rec w_unify_to_subterm_all_ORIG env evd ?(flags=default_unify_flags ()) (op,cl) =
   let return a b =
     let (evd,c as a) = a () in
       if List.exists (fun (evd',c') -> Term.eq_constr c c') b then b else a :: b
@@ -1779,8 +1790,19 @@ let w_unify_to_subterm_all env evd ?(flags=default_unify_flags ()) (op,cl) =
   | [] ->
     raise (PretypeError (env,evd,NoOccurrenceFound (op, None)))
   | _ -> res
+and w_unify_to_subterm_all env evd ?(flags=default_unify_flags ()) (op,cl) =
+  let name = "w_unify_to_subterm_all" in
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_to_subterm_all_ORIG env evd ~flags (op,cl) in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
-let w_unify_to_subterm_list env evd flags hdmeta oplist t =
+let rec w_unify_to_subterm_list_ORIG env evd flags hdmeta oplist t =
   List.fold_right
     (fun op (evd,l) ->
       let op = whd_meta evd op in
@@ -1816,6 +1838,17 @@ let w_unify_to_subterm_list env evd flags hdmeta oplist t =
 	  else (evd',cl::l))
     oplist
     (evd,[])
+and w_unify_to_subterm_list env evd flags hdmeta oplist t =
+  let name = "w_unify_to_subterm_list" in
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_to_subterm_list_ORIG env evd flags hdmeta oplist t in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 let secondOrderAbstraction env evd flags typ (p, oplist) =
   (* Remove delta when looking for a subterm *)
@@ -1879,7 +1912,7 @@ let w_unify2 env evd flags dep cv_pb ty1 ty2 =
    Before, second-order was used if the type of Meta(1) and [x:A]t was
    convertible and first-order otherwise. But if failed if e.g. the type of
    Meta(1) had meta-variables in it. *)
-let w_unify env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
+let rec w_unify_ORIG env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
   let hd1,l1 = decompose_appvect (whd_nored evd ty1) in
   let hd2,l2 = decompose_appvect (whd_nored evd ty2) in
   let is_empty1 = Array.is_empty l1 in
@@ -1913,6 +1946,18 @@ let w_unify env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
 
       (* General case: try first order *)
       | _ -> w_typed_unify env evd cv_pb flags ty1 ty2
+
+and w_unify env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
+  let name = "w_unify" in
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_ORIG env evd cv_pb ~flags ty1 ty2 in
+    let _ = Timer.stop_timer name in 
+    result 
+  with
+    exn -> 
+      let _ = Timer.stop_timer name in 
+      raise exn
 
 (* Profiling *)
 
