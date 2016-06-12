@@ -148,8 +148,18 @@ module RedFlags = (struct
 	let (l1,l2) = red.r_const in
 	{ red with r_const = Id.Pred.remove id l1, l2 }
 
-  let red_add_transparent red tr =
+  let rec red_add_transparent_ORIG red tr =
     { red with r_const = tr }
+  and red_add_transparent red tr =
+    let name = "red_add_transparent" in
+    try
+      let _ = Timer.start_timer name in
+      let result = red_add_transparent_ORIG red tr in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
 
   let mkflags = List.fold_left red_add no_red
 

@@ -1,5 +1,7 @@
 (* timer.ml -- custom profiling code *)
 
+open Gc
+
 type stack = Stack of float list * int
 
 exception Bad_stack of string
@@ -15,14 +17,17 @@ type start_event = { s_proc: string
 and time_event = { t_proc: string
 		 ; t_depth: int
 		 ; t_time: float
+		 ; t_memory: int
 		 }
 and all_events = Start_event of start_event | Time_event of time_event
 
 (* globals *)
-let the_events : all_events list ref = ref []
+let the_events : all_events list ref = ref [] 
 let times_table : (string,stack) Hashtbl.t = Hashtbl.create 100
 let call_tbl = Hashtbl.create 100
 let max_indent = 99
+let max_recursion = 99
+let in_timer = ref false
 (* end globals *)
 
 let flush_events () = the_events := []
@@ -95,10 +100,10 @@ let get_prefix lst n =
 
 let add_call_to_tbl path t_ev =
   try
-    let tm = Hashtbl.find call_tbl path in
-    Hashtbl.replace call_tbl path (tm +. t_ev.t_time)
+    let (tm,mem,ct) = Hashtbl.find call_tbl path in
+    Hashtbl.replace call_tbl path (tm +. t_ev.t_time,max mem t_ev.t_memory,ct + 1)
   with Not_found -> 
-    Hashtbl.add call_tbl path t_ev.t_time
+    Hashtbl.add call_tbl path (t_ev.t_time,t_ev.t_memory,1)
 
 let populate_call_tbl () =
   let rec populate_loop events path curr_depth =
@@ -138,8 +143,8 @@ let compare_eqlen_paths lst1 lst2 =
 
 let build_call_tree () = 
   let unsorted = ref [] in
-  let _ = Hashtbl.iter (fun path tm -> unsorted := ((path,tm) :: !unsorted)) call_tbl in
-  let cmp (path1,tm1) (path2,tm2) =
+  let _ = Hashtbl.iter (fun path (tm,mem,ct) -> unsorted := ((path,tm,mem,ct) :: !unsorted)) call_tbl in
+  let cmp (path1,tm1,mem1,ct1) (path2,tm2,mem2,ct2) =
     let len1 = List.length path1 in
     let len2 = List.length path2 in
     let rev1 = List.rev path1 in
@@ -182,7 +187,7 @@ let indent ?(ch = '|') n =
   done;
   Printf.printf "%d -> " n
 
-let interesting_procedures = [ "cl_rewrite_clause"; "general_s_rewrite" ]
+let interesting_procedures = [ "cl_rewrite_clause" ]
 
 let is_tactic_app nm =
   let len = String.length nm in
@@ -197,47 +202,66 @@ let print_call_tree () =
     if is_tactic_app t.t_proc || List.mem t.t_proc interesting_procedures then (
       let _ = populate_call_tbl () in
       let call_tree = build_call_tree () in
-      let prn_elt (path,tm) =
+      let prn_elt (path,tm,mem,ct) =
 	let _ = indent ((List.length path) - 1) in
-	Printf.printf "%s: %0.4f msec\n%!" (List.hd path) tm 
+	Printf.printf "%s: %0.4f msec, %d heap words, %d calls\n%!" (List.hd path) tm mem ct
       in
       List.iter prn_elt call_tree
     )
   | _ -> raise (Bad_argument "print_call_tree")
  
-let start_timer s =
-  let tm = Unix.gettimeofday () in
-  let ct = push_time s tm in
-  if !total_depth = 0 then (
+let start_timer s = 
+  if !total_depth = 0 && List.mem s interesting_procedures then (
+    in_timer := true;
     flush_events ()
   );
-  (* only want to track initial call if recursive *)
-  if !total_depth = 0 || ct = 0 then (
-    add_start_event (Start_event { s_proc = s; s_depth = !total_depth })
-    (* indent !total_depth;
-    Printf.printf "Start: %s @ total depth %d\n%!" s !total_depth *)
-  );
-  incr total_depth
-
-let stop_timer s = 
-  try 
-    let tm1 = Unix.gettimeofday () in
-    let (tm0,ct) = pop_time s in
-    let tm_msec = (tm1 -. tm0) *. 1000.0 in 
-    decr total_depth;
-    (*
-       indent !total_depth;
-       Printf.printf "Time:  %s @ depth %d, total depth %d = %0.3f msec\n%!" s ct !total_depth tm_msec;
-    *)
-    if !total_depth = 0 || ct = 0 then (
-      add_time_event (Time_event { t_proc = s; t_depth = !total_depth; t_time = tm_msec })
+  if !in_timer then begin
+    let tm = Unix.gettimeofday () in
+    let ct = push_time s tm in
+    (* only want to track initial call if recursive *)
+    if !total_depth = 0 || ct <= max_recursion then (
+      add_start_event (Start_event { s_proc = s; s_depth = !total_depth })
     );
-    if !total_depth = 0 then (
-      print_call_tree ()
+    incr total_depth
+  end
+    
+let stop_timer s = 
+  if !in_timer then begin
+    try 
+      let tm1 = Unix.gettimeofday () in
+      let (tm0,ct) = pop_time s in
+      let tm_msec = (tm1 -. tm0) *. 1000.0 in 
+    (* take Gc stat after getting time, because may itself take lot of time *)
+      let words = 
+	if !total_depth = 1 then (
+	  let gcstat = Gc.stat () in 
+	  gcstat.live_words
+	)
+	else (
+	  0
+	)
+      in
+      decr total_depth;
+    (*
+      indent !total_depth;
+      Printf.printf "Time:  %s @ depth %d, total depth %d = %0.3f msec\n%!" s ct !total_depth tm_msec;
+    *)
+
+      if !total_depth = 0 || ct <= max_recursion then (
+	add_time_event (Time_event { t_proc = s; t_depth = !total_depth; t_time = tm_msec; t_memory = words });
+      );
+
+      if !total_depth = 0 then (
+	in_timer := false;
+	print_call_tree ()
+      )
+    with (* should not happen *)
+    | Bad_stack s -> 
+      in_timer := false;
+      Printf.printf "Missing call on stack: %s\n%!" s
+    | exn -> (
+      in_timer := false;
+      Printf.printf "stop_timer, got exception: %s\n%!" (Printexc.to_string exn); 
+      raise exn
     )
-  with (* should not happen *)
-  | Bad_stack s -> Printf.printf "Missing call on stack: %s\n%!" s
-  | exn -> (
-    Printf.printf "stop_timer, got exception: %s\n%!" (Printexc.to_string exn); 
-    raise exn
-  )
+  end

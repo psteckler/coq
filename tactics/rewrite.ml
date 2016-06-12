@@ -673,6 +673,8 @@ let symmetry env sort rew =
   in
   { rew with rew_from = rew.rew_to; rew_to = rew.rew_from; rew_prf; rew_evars; }
 
+open Unification
+
 (* Matching/unifying the rewriting rule against [t] *)
 let rec unify_eqn_ORIG (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
   try
@@ -694,8 +696,10 @@ let rec unify_eqn_ORIG (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma
     let rew = if l2r then rew else symmetry env sort rew in
     Some rew
   with 
-  | e when Class_tactics.catchable e -> None
-  | Reduction.NotConvertible -> None
+  | e when Class_tactics.catchable e -> 
+    None
+  | Reduction.NotConvertible -> 
+    None
 and unify_eqn (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
   let name = "unify_eqn" in
   let _ = Timer.start_timer name in
