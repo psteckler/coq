@@ -17,7 +17,5 @@ Goal forall (A : Type) (a b : A) (H' : IsHSet A), { x : Type & IsHProp x }.
 Proof.
 intros.
 eexists.
-(* exact (H' a b). *)
-(* Undo. *)
-apply (H' a b).
+exact (H' a b).
 Qed.
