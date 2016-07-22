@@ -1644,9 +1644,19 @@ let cl_rewrite_clause_strat progress strat clause =
 	  tclFAIL n (str"setoid rewrite failed: " ++ Lazy.force pp) gl))
 
 (** Setoid rewriting when called with "setoid_rewrite" *)
-let cl_rewrite_clause l left2right occs clause gl =
+let rec cl_rewrite_clause_ORIG l left2right occs clause gl =
   let strat = rewrite_with left2right (general_rewrite_unif_flags ()) l occs in
     cl_rewrite_clause_strat true strat clause gl
+and cl_rewrite_clause l left2right occs clause gl =
+  let name = "cl_rewrite_clause" in
+  let _ = Timer.start_timer name in
+  try
+    let result = cl_rewrite_clause_ORIG l left2right occs clause gl in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (** Setoid rewriting when called with "rewrite_strat" *)
 let cl_rewrite_clause_strat strat clause =
