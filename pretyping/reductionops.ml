@@ -454,11 +454,22 @@ struct
     | Update(_)::s -> args_size s
     | (Case _|Fix _|Proj _|Cst _)::_ | [] -> 0
 
-  let strip_app s =
+  let rec strip_app_ORIG s =
     let rec aux out = function
       | ( App _ | Shift _ as e) :: s -> aux (e :: out) s
       | s -> List.rev out,s
     in aux [] s
+  and strip_app s = 
+    let name = "strip_app" in
+    let _ = Timer.start_timer name in
+    try
+      let result = strip_app_ORIG s in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
+
   let strip_n_app n s =
     let rec aux n out = function
       | Shift k as e :: s -> aux n (e :: out) s
@@ -647,9 +658,19 @@ type 'a miota_args = {
   mcargs  : 'a list;    (* the constructor's arguments *)
   mlf     : 'a array }  (* the branch code vector *)
 
-let reducible_mind_case c = match kind_of_term c with
+let rec reducible_mind_case_ORIG c = match kind_of_term c with
   | Construct _ | CoFix _ -> true
   | _  -> false
+and reducible_mind_case c = 
+  let name = "reducible_mind_case" in
+  let _ = Timer.start_timer name in
+  try
+    let result = reducible_mind_case_ORIG c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (** @return c if there is a constant c whose body is bd
     @return bd else.
@@ -698,7 +719,7 @@ let contract_cofix ?env ?reference (bodynum,(names,types,bodies as typedbodies))
   substl closure bodies.(bodynum)
 
 (** Similar to the "fix" case below *)
-let reduce_and_refold_cofix recfun env refold cst_l cofix sk =
+let rec reduce_and_refold_cofix_ORIG recfun env refold cst_l cofix sk =
   let raw_answer =
     let env = if refold then Some env else None in
     contract_cofix ?env ?reference:(Cst_stack.reference cst_l) cofix in
@@ -708,6 +729,16 @@ let reduce_and_refold_cofix recfun env refold cst_l cofix sk =
         if refold then Cst_stack.best_replace (mkCoFix cofix) cst_l t else t in
       recfun x (t',sk'))
     [] refold Cst_stack.empty raw_answer sk
+and reduce_and_refold_cofix recfun env refold cst_l cofix sk =
+  let name = "reduce_and_refold_cofix" in
+  let _ = Timer.start_timer name in
+  try
+    let result = reduce_and_refold_cofix_ORIG recfun env refold cst_l cofix sk in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let reduce_mind_case mia =
   match kind_of_term mia.mconstr with
@@ -743,7 +774,7 @@ let contract_fix ?env ?reference ((recindices,bodynum),(names,types,bodies as ty
     replace the fixpoint by the best constant from [cst_l]
     Other rels are directly substituted by constants "magically found from the
     context" in contract_fix *)
-let reduce_and_refold_fix recfun env refold cst_l fix sk =
+let rec reduce_and_refold_fix_ORIG recfun env refold cst_l fix sk =
   let raw_answer =
     let env = if refold then None else Some env in
     contract_fix ?env ?reference:(Cst_stack.reference cst_l) fix in
@@ -755,6 +786,16 @@ let reduce_and_refold_fix recfun env refold cst_l fix sk =
         else t
       in recfun x (t',sk'))
     [] refold Cst_stack.empty raw_answer sk
+and reduce_and_refold_fix recfun env refold cst_l fix sk =
+  let name = "reduce_and_refold_fix" in
+  let _ = Timer.start_timer name in
+  try
+    let result = reduce_and_refold_fix_ORIG recfun env refold cst_l fix sk in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let fix_recarg ((recindices,bodynum),_) stack =
   assert (0 <= bodynum && bodynum < Array.length recindices);
@@ -794,9 +835,9 @@ let equal_stacks (x, l) (y, l') =
     | None -> false
     | Some (lft1,lft2) -> f_equal (x, lft1) (y, lft2) 
 
-let rec whd_state_gen ?csts tactic_mode flags env sigma =
+let rec whd_state_gen_ORIG ?csts tactic_mode flags env sigma =
   let open Context.Named.Declaration in
-  let rec whrec cst_l (x, stack as s) =
+  let rec whrec_ORIG cst_l (x, stack as s) =
     let () = if !debug_RAKAM then
 	let open Pp in
 	Feedback.msg_notice
@@ -1001,10 +1042,30 @@ let rec whd_state_gen ?csts tactic_mode flags env sigma =
 
     | Rel _ | Var _ | Const _ | LetIn _ | Proj _ -> fold ()
     | Sort _ | Ind _ | Prod _ -> fold ()
+  and whrec cst_l (x, stack as s) =
+    let name = "whrec in whd_state_gen" in
+    let _ = Timer.start_timer name in
+    try
+      let result = whrec_ORIG cst_l s in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
   in
   fun xs ->
   let (s,cst_l as res) = whrec (Option.default Cst_stack.empty csts) xs in
   if tactic_mode then (Stack.best_state s cst_l,Cst_stack.empty) else res
+and whd_state_gen ?csts tactic_mode flags env sigma =
+  let name = "whd_state_gen" in
+  let _ = Timer.start_timer name in
+  try
+    let result = whd_state_gen_ORIG ?csts tactic_mode flags env sigma in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (** reduction machine without global env and refold machinery *)
 let local_whd_state_gen flags sigma =
@@ -1481,8 +1542,8 @@ let is_sort env sigma t =
 (* reduction to head-normal-form allowing delta/zeta only in argument
    of case/fix (heuristic used by evar_conv) *)
 
-let whd_betaiota_deltazeta_for_iota_state ts env sigma csts s =
-  let rec whrec csts s =
+let rec whd_betaiota_deltazeta_for_iota_state_ORIG ts env sigma csts s =
+  let rec whrec_ORIG csts s =
     let (t, stack as s),csts' = whd_state_gen ~csts false CClosure.betaiota env sigma s in
     match Stack.strip_app stack with
       |args, (Stack.Case _ :: _ as stack') ->
@@ -1500,7 +1561,29 @@ let whd_betaiota_deltazeta_for_iota_state ts env sigma csts s =
 	  whrec Cst_stack.empty (Stack.nth stack_o (n+m), stack'')
 	else s,csts'
       |_, ((Stack.App _| Stack.Shift _|Stack.Update _|Stack.Cst _) :: _|[]) -> s,csts'
+  and whrec csts s =
+    let name = "whrec in whd_betaiota_deltazeta_for_iota_state" in
+    let _ = Timer.start_timer name in
+    try
+      let result = whrec_ORIG csts s in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+    raise exn
   in whrec csts s
+and whd_betaiota_deltazeta_for_iota_state ts env sigma csts s =
+  let name = "whd_betaiota_deltazeta_for_iota_state" in
+  let _ = Timer.start_timer name in
+  try
+    let result = whd_betaiota_deltazeta_for_iota_state_ORIG ts env sigma csts s in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+
+
 
 let find_conclusion env sigma =
   let rec decrec env c =

@@ -232,17 +232,39 @@ let e_give_exact flags poly (c,clenv) gl =
   let t1 = pf_unsafe_type_of gl c in
   Proofview.V82.of_tactic (Clenvtac.unify ~flags t1 <*> exact_no_check c) gl
 
-let unify_e_resolve poly flags = { enter = begin fun gls (c,_,clenv) ->
+let rec unify_e_resolve_ORIG poly flags = { enter = begin fun gls (c,_,clenv) ->
   let clenv', c = connect_hint_clenv poly c clenv gls in
   let clenv' = Tacmach.New.of_old (clenv_unique_resolver ~flags clenv') gls in
     Clenvtac.clenv_refine true ~with_classes:false clenv'
   end }
+and unify_e_resolve poly flags = 
+  let name = "unify_e_resolve" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_e_resolve_ORIG poly flags in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let unify_resolve poly flags = { enter = begin fun gls (c,_,clenv) ->
+
+let rec unify_resolve_ORIG poly flags = { enter = begin fun gls (c,_,clenv) ->
   let clenv', _ = connect_hint_clenv poly c clenv gls in
   let clenv' = Tacmach.New.of_old (clenv_unique_resolver ~flags clenv') gls in
     Clenvtac.clenv_refine false ~with_classes:false clenv'
   end }
+and unify_resolve poly flags = 
+  let name = "unify_resolve" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_resolve_ORIG poly flags in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+
 
 (** Application of a lemma using [refine] instead of the old [w_unify] *)
 let unify_resolve_refine poly flags =
@@ -683,11 +705,22 @@ module V85 = struct
     let rec aux i foundone = function
       | (tac, _, extern, name, pp) :: tl ->
          let derivs = path_derivate info.auto_cut name in
+	 let name = Pp.string_of_ppcmds (Lazy.force pp) in
+	 let _ = Printf.printf "Applying tactic: %s\n" name in
+	 let _ = Timer.start_timer name in
          let res =
            try
-             if path_matches derivs [] then None
-             else Some (Proofview.V82.of_tactic tac tacgl)
-           with e when catchable e -> None
+	     let retval = if path_matches derivs [] then None
+               else Some (Proofview.V82.of_tactic tac tacgl) in
+	     let _ = Timer.stop_timer name
+	     in retval
+           with 
+	   | e when catchable e -> 
+	     let _ = Timer.stop_timer name in
+	     None
+	   | e1 -> 
+	     let _ = Timer.stop_timer name in
+	     raise e1
          in
          (match res with
           | None -> aux i foundone tl
@@ -1449,11 +1482,21 @@ let resolve_typeclass_evars debug depth unique env evd filter split fail =
     resolve_all_evars debug depth unique env
                       (initial_select_evars filter) evd split fail
 
-let solve_inst env evd filter unique split fail =
+let rec solve_inst_ORIG env evd filter unique split fail =
   resolve_typeclass_evars
     (get_typeclasses_debug ())
     (get_typeclasses_depth ())
     unique env evd filter split fail
+and solve_inst env evd filter unique split fail =
+  let name = "solve_inst" in
+  let _ = Timer.start_timer name in
+  try
+    let result = solve_inst_ORIG env evd filter unique split fail in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let _ =
   Hook.set Typeclasses.solve_all_instances_hook solve_inst
