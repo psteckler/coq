@@ -777,14 +777,14 @@ and subst_defined_metas_evars (bl,el) c =
 
 
 let rec check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
-  match subst_defined_metas_evars (metasubst,[]) tyM with
+  match subst_defined_metas_evars (metasubst,evarsubst) tyM with
   | None -> sigma
   | Some m ->
-    match subst_defined_metas_evars (metasubst,[]) tyN with
+    match subst_defined_metas_evars (metasubst,evarsubst) tyN with
     | None -> sigma
     | Some n ->
       if is_ground_term sigma m && is_ground_term sigma n then
-	let sigma, b = infer_conv ~pb:pbty ~ts:flags.modulo_delta_types env sigma m n in
+	let sigma, b = infer_conv ~pb:pbty ~ts:Names.full_transparent_state env sigma m n in
 	if b then sigma
 	else error_cannot_unify env sigma (m,n)
       else sigma
