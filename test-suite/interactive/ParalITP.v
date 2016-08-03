@@ -9,7 +9,7 @@ Ltac sleep n :=
   try (cut (fib n = S (fib n)); reflexivity).
 
 (* Tune that depending on your PC *)
-Let time := 18.
+Let time := 1.
 
 
 (* Beginning of demo *)
@@ -24,7 +24,8 @@ Proof using i.
   idtac.
   sleep time.
   (* Error, jump back to fix it, then Qed again *)
-  exact (i i).
+(*  exact (i i). *)
+  trivial.
 Qed.
 
 Lemma b : True.

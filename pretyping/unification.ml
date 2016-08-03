@@ -1080,7 +1080,6 @@ let rec unify_0_with_initial_metas_ORIG (sigma,ms,es as subst) conv_at_top env c
       let _ = Timer.stop_timer name in
       raise exn
 
-
   and unify_app_ORIG (curenv, nb as curenvnb) pb opt (sigma, metas, evars as substn) cM f1 l1 cN f2 l2 =
     try
       let needs_expansion p c' = 
@@ -1102,12 +1101,28 @@ let rec unify_0_with_initial_metas_ORIG (sigma,ms,es as subst) conv_at_top env c
       let f1, l1 = expand_proj f1 f2 l1 in
       let f2, l2 = expand_proj f2 f1 l2 in
       let opta = {opt with at_top = true; with_types = false} in
-      let optf = {opt with at_top = true; with_types = true} in
+      let optf = {opt with at_top = true; with_types = false} in
       let (f1,l1,f2,l2) = adjust_app_array_size f1 l1 f2 l2 in
       if Array.length l1 == 0 then error_cannot_unify (fst curenvnb) sigma (cM,cN)
       else
+	(* pre-emptively check compatibility of types for app prefixes *)
+	let sigma1 = 
+	  let subst = ((if flags.use_metas_eagerly_in_conv_on_closed_terms then metas else ms), 
+		       (if flags.use_evars_eagerly_in_conv_on_closed_terms then evars else es)) 
+	  in
+	  match subst_defined_metas_evars subst cM with
+	  | None -> (* some undefined Metas in cM *) sigma
+	  | Some m1 ->
+	    match subst_defined_metas_evars subst cN with
+	    | None -> (* some undefined Metas in cN *) sigma
+	    | Some n1 ->
+              (* No subterm restriction there, too much incompatibilities *)
+	      let tyM = get_type_of curenv ~lax:true sigma m1 in
+	      let tyN = get_type_of curenv ~lax:true sigma n1 in
+	      check_compatibility curenv CUMUL flags substn tyM tyN
+	in
 	Array.fold_left2 (unirec_rec curenvnb CONV opta)
-	  (unirec_rec curenvnb CONV optf substn f1 f2) l1 l2
+	  (unirec_rec curenvnb CONV optf (sigma1, metas, evars) f1 f2) l1 l2
     with ex when precatchable_exception ex ->
       try reduce curenvnb pb {opt with with_types = false} substn cM cN
       with ex when precatchable_exception ex ->
