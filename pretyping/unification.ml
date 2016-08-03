@@ -1129,6 +1129,10 @@ let rec unify_0_with_initial_metas_ORIG (sigma,ms,es as subst) conv_at_top env c
 	try canonical_projections curenvnb pb opt cM cN substn
 	with ex when precatchable_exception ex ->
 	  expand curenvnb pb {opt with with_types = false} substn cM f1 l1 cN f2 l2
+	| exn ->
+	   let _ = Printf.printf "Got unhandled exception in unify_app: %s\n" (Printexc.to_string exn) in
+	   let _ = flush stdout in
+	   raise exn
   and unify_app (curenv, nb as curenvnb) pb opt (sigma, metas, evars as substn) cM f1 l1 cN f2 l2 =
     let name = "unify_app" in 
     let _ = Timer.start_timer name in
