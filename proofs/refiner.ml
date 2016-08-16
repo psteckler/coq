@@ -218,7 +218,7 @@ let tclSHOWHYPS (tac : tactic) (goal: Goal.goal Evd.sigma)
 	   (fun acc d -> (Names.Id.to_string (get_id d)) ^ " " ^ acc)
 	   "" lh))
     "" newhyps in
-  Feedback.msg_notice
+  msg_notice
     (str (emacs_str "<infoH>")
       ++  (hov 0 (str s))
       ++  (str (emacs_str "</infoH>")) ++ fnl());
