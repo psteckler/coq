@@ -1110,11 +1110,11 @@ let rec unify_0_with_initial_metas_ORIG (sigma,ms,es as subst) conv_at_top env c
 	  let subst = ((if flags.use_metas_eagerly_in_conv_on_closed_terms then metas else ms), 
 		       (if flags.use_evars_eagerly_in_conv_on_closed_terms then evars else es)) 
 	  in
-	  match subst_defined_metas_evars subst cM with
-	  | None -> (* some undefined Metas in cM *) sigma
+	  match subst_defined_metas_evars subst f1 with
+	  | None -> (* some undefined Metas in f1 *) sigma
 	  | Some m1 ->
-	    match subst_defined_metas_evars subst cN with
-	    | None -> (* some undefined Metas in cN *) sigma
+	    match subst_defined_metas_evars subst f2 with
+	    | None -> (* some undefined Metas in f2 *) sigma
 	    | Some n1 ->
               (* No subterm restriction there, too much incompatibilities *)
 	      let tyM = get_type_of curenv ~lax:true sigma m1 in
