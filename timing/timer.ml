@@ -99,10 +99,10 @@ let get_prefix lst n =
 
 let add_call_to_tbl path t_ev =
   try
-    let (tm,mem,ct) = Hashtbl.find call_tbl path in
-    Hashtbl.replace call_tbl path (tm +. t_ev.t_time,max mem t_ev.t_memory,ct + 1)
+    let (tm,max_tm,mem,ct) = Hashtbl.find call_tbl path in
+    Hashtbl.replace call_tbl path (tm +. t_ev.t_time,max max_tm t_ev.t_time,max mem t_ev.t_memory,ct + 1)
   with Not_found -> 
-    Hashtbl.add call_tbl path (t_ev.t_time,t_ev.t_memory,1)
+    Hashtbl.add call_tbl path (t_ev.t_time,t_ev.t_time,t_ev.t_memory,1)
 
 let populate_call_tbl () =
   let rec populate_loop events path curr_depth =
@@ -142,8 +142,8 @@ let compare_eqlen_paths lst1 lst2 =
 
 let build_call_tree () = 
   let unsorted = ref [] in
-  let _ = Hashtbl.iter (fun path (tm,mem,ct) -> unsorted := ((path,tm,mem,ct) :: !unsorted)) call_tbl in
-  let cmp (path1,tm1,mem1,ct1) (path2,tm2,mem2,ct2) =
+  let _ = Hashtbl.iter (fun path (tm,max_tm,mem,ct) -> unsorted := ((path,tm,max_tm,mem,ct) :: !unsorted)) call_tbl in
+  let cmp (path1,tm1,max_tm1,mem1,ct1) (path2,tm2,max_tm2,mem2,ct2) =
     let len1 = List.length path1 in
     let len2 = List.length path2 in
     let rev1 = List.rev path1 in
@@ -201,9 +201,9 @@ let print_call_tree () =
     if is_tactic_app t.t_proc || List.mem t.t_proc interesting_procedures then (
       let _ = populate_call_tbl () in
       let call_tree = build_call_tree () in
-      let prn_elt (path,tm,mem,ct) =
+      let prn_elt (path,tm,max_tm,mem,ct) =
 	let _ = indent ((List.length path) - 1) in
-	Printf.printf "%s: %0.4f msec, %d heap words, %d calls\n%!" (List.hd path) tm mem ct
+	Printf.printf "%s: %0.4f msec, %0.4f max msec, %d heap words, %d calls\n%!" (List.hd path) tm max_tm mem ct
       in
       List.iter prn_elt call_tree
     )
@@ -215,7 +215,7 @@ let start_timer s =
   if !total_depth = 0 then (
     flush_events ()
   );
-  (* only want to track initial call if recursive *)
+  (* only track recursive calls to some bounded depth *)
   if !total_depth = 0 || ct <= max_recursion then (
     add_start_event (Start_event { s_proc = s; s_depth = !total_depth })
     (* indent !total_depth;
