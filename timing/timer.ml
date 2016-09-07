@@ -1,7 +1,7 @@
 (* timer.ml -- custom profiling code *)
 
 open Gc
-
+  
 type stack = Stack of float list * int
 
 exception Bad_stack of string
@@ -17,6 +17,7 @@ type start_event = { s_proc: string
 and time_event = { t_proc: string
 		 ; t_depth: int
 		 ; t_time: float
+		 ; t_start_time: float
 		 ; t_memory: int
 		 }
 and all_events = Start_event of start_event | Time_event of time_event
@@ -28,6 +29,10 @@ let call_tbl = Hashtbl.create 100
 let max_indent = 99
 let max_recursion = 99
 (* end globals *)
+
+(* TEMP tables *)
+let check_compat_tbl : (float,Environ.env * Term.constr * Term.constr) Hashtbl.t = Hashtbl.create 5000
+let w_unify_tbl : (float,Environ.env * Term.constr * Term.constr) Hashtbl.t = Hashtbl.create 5000
 
 let flush_events () = the_events := []
 
@@ -99,10 +104,18 @@ let get_prefix lst n =
 
 let add_call_to_tbl path t_ev =
   try
-    let (tm,max_tm,mem,ct) = Hashtbl.find call_tbl path in
-    Hashtbl.replace call_tbl path (tm +. t_ev.t_time,max max_tm t_ev.t_time,max mem t_ev.t_memory,ct + 1)
+    let (tm,start_tm_for_max_tm,max_tm,mem,ct) = Hashtbl.find call_tbl path in
+    let (new_max_tm,new_start_tm_for_max_tm) =
+	if t_ev.t_time > max_tm then
+	  (t_ev.t_time,t_ev.t_start_time)
+	else
+	  (max_tm,start_tm_for_max_tm)
+    in
+    Hashtbl.replace call_tbl path (tm +. t_ev.t_time,
+				   new_start_tm_for_max_tm,
+				   new_max_tm,max mem t_ev.t_memory,ct + 1)
   with Not_found -> 
-    Hashtbl.add call_tbl path (t_ev.t_time,t_ev.t_time,t_ev.t_memory,1)
+    Hashtbl.add call_tbl path (t_ev.t_time,t_ev.t_start_time,t_ev.t_time,t_ev.t_memory,1)
 
 let populate_call_tbl () =
   let rec populate_loop events path curr_depth =
@@ -142,8 +155,8 @@ let compare_eqlen_paths lst1 lst2 =
 
 let build_call_tree () = 
   let unsorted = ref [] in
-  let _ = Hashtbl.iter (fun path (tm,max_tm,mem,ct) -> unsorted := ((path,tm,max_tm,mem,ct) :: !unsorted)) call_tbl in
-  let cmp (path1,tm1,max_tm1,mem1,ct1) (path2,tm2,max_tm2,mem2,ct2) =
+  let _ = Hashtbl.iter (fun path (tm,start_tm_for_max_tm,max_tm,mem,ct) -> unsorted := ((path,tm,start_tm_for_max_tm,max_tm,mem,ct) :: !unsorted)) call_tbl in
+  let cmp (path1,tm1,start_tm_for_max_tm1,max_tm1,mem1,ct1) (path2,tm2,start_tm_for_max_tm2,max_tm2,mem2,ct2) =
     let len1 = List.length path1 in
     let len2 = List.length path2 in
     let rev1 = List.rev path1 in
@@ -201,9 +214,29 @@ let print_call_tree () =
     if is_tactic_app t.t_proc || List.mem t.t_proc interesting_procedures then (
       let _ = populate_call_tbl () in
       let call_tree = build_call_tree () in
-      let prn_elt (path,tm,max_tm,mem,ct) =
+      let prn_elt (path,tm,start_tm_for_max_tm,max_tm,mem,ct) =
 	let _ = indent ((List.length path) - 1) in
-	Printf.printf "%s: %0.4f msec, %0.4f max msec, %d heap words, %d calls\n%!" (List.hd path) tm max_tm mem ct
+	let _ = Printf.printf "%s: %0.4f msec, %0.4f max msec, %d heap words, %d calls\n%!" (List.hd path) tm max_tm mem ct in
+	if List.hd path = "w_unify" then
+	  try
+	    let (env,ty1,ty2) = Hashtbl.find w_unify_tbl start_tm_for_max_tm in
+	    let _ = indent (List.length path) in
+	    Printf.printf "Max time for w_unify from: ty1: %s ty2: %s\n"
+	      (Pp.string_of_ppcmds (Termops.print_constr_env env ty1)) (Pp.string_of_ppcmds (Termops.print_constr_env env ty2));
+	    flush stdout
+	  with _ ->
+	    Printf.printf "??? Could not find types yielding max time for w_unify\n";
+	    flush stdout
+	else if List.hd path = "check_compatibility" then
+	  try
+	    let (env,tyM,tyN) = Hashtbl.find check_compat_tbl start_tm_for_max_tm in
+	    let _ = indent (List.length path) in
+	    Printf.printf "Max time for check_compatibility from: tyM: %s tyN: %s\n"
+	      (Pp.string_of_ppcmds (Termops.print_constr_env env tyM)) (Pp.string_of_ppcmds (Termops.print_constr_env env tyN));
+	    flush stdout
+	  with _ ->
+	    Printf.printf "??? Could not find types yielding max time for check_compatibility\n";
+	    flush stdout
       in
       List.iter prn_elt call_tree
     )
@@ -218,11 +251,12 @@ let start_timer s =
   (* only track recursive calls to some bounded depth *)
   if !total_depth = 0 || ct <= max_recursion then (
     add_start_event (Start_event { s_proc = s; s_depth = !total_depth })
-    (* indent !total_depth;
-    Printf.printf "Start: %s @ total depth %d\n%!" s !total_depth 
-); *)
+  (* indent !total_depth;
+     Printf.printf "Start: %s @ total depth %d\n%!" s !total_depth 
+     ); *)
   );
-  incr total_depth
+ let _ = incr total_depth in
+ tm
 
 let stop_timer s = 
   try 
@@ -240,7 +274,7 @@ let stop_timer s =
     *)
 
     if !total_depth = 0 || ct <= max_recursion then (
-      add_time_event (Time_event { t_proc = s; t_depth = !total_depth; t_time = tm_msec; t_memory = words });
+      add_time_event (Time_event { t_proc = s; t_depth = !total_depth; t_time = tm_msec; t_start_time = tm0; t_memory = words });
     );
 
     if !total_depth = 0 then (
