@@ -790,13 +790,15 @@ let rec check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM 
       else sigma
 and check_compatibility env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
   let name = "check_compatibility" in 
-  let _ = Timer.start_timer name in
+  let start_tm = Timer.start_timer name in
   try
     let result = check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM tyN in
     let _ = Timer.stop_timer name in
+    let _ = Hashtbl.add Timer.check_compat_tbl start_tm (env,tyM,tyN) in
     result
   with exn ->
     let _ = Timer.stop_timer name in
+    let _ = Hashtbl.add Timer.check_compat_tbl start_tm (env,tyM,tyN) in
     raise exn
 
 
@@ -1101,12 +1103,13 @@ let rec unify_0_with_initial_metas_ORIG (sigma,ms,es as subst) conv_at_top env c
       let f1, l1 = expand_proj f1 f2 l1 in
       let f2, l2 = expand_proj f2 f1 l2 in
       let opta = {opt with at_top = true; with_types = false} in
-      let optf = {opt with at_top = true; with_types = false} in
+      let optf = {opt with at_top = true; with_types = true} in
+      (*      let optf = {opt with at_top = true; with_types = false} in *)
       let (f1,l1,f2,l2) = adjust_app_array_size f1 l1 f2 l2 in
       if Array.length l1 == 0 then error_cannot_unify (fst curenvnb) sigma (cM,cN)
       else
 	(* pre-emptively check compatibility of types for app prefixes *)
-	let sigma1 = 
+(*	let sigma1 = 
 	  let subst = ((if flags.use_metas_eagerly_in_conv_on_closed_terms then metas else ms), 
 		       (if flags.use_evars_eagerly_in_conv_on_closed_terms then evars else es)) 
 	  in
@@ -1120,9 +1123,9 @@ let rec unify_0_with_initial_metas_ORIG (sigma,ms,es as subst) conv_at_top env c
 	      let tyM = get_type_of curenv ~lax:true sigma m1 in
 	      let tyN = get_type_of curenv ~lax:true sigma n1 in
 	      check_compatibility curenv CUMUL flags substn tyM tyN
-	in
+	in *)
 	Array.fold_left2 (unirec_rec curenvnb CONV opta)
-	  (unirec_rec curenvnb CONV optf (sigma1, metas, evars) f1 f2) l1 l2
+	  (unirec_rec curenvnb CONV optf (* (sigma1, metas, evars) *) substn f1 f2) l1 l2
     with ex when precatchable_exception ex ->
       try reduce curenvnb pb {opt with with_types = false} substn cM cN
       with ex when precatchable_exception ex ->
@@ -2649,7 +2652,6 @@ and w_unify2 env evd flags dep cv_pb ty1 ty2 =
     let _ = Timer.stop_timer name in
     raise exn
 
-
 (* The unique unification algorithm works like this: If the pattern is
    flexible, and the goal has a lambda-abstraction at the head, then
    we do a first-order unification.
@@ -2704,13 +2706,15 @@ let rec w_unify_ORIG env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
   | _ -> w_typed_unify env evd cv_pb flags ty1 ty2
 and w_unify env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
   let name = "w_unify" in 
-  let _ = Timer.start_timer name in
+  let start_tm = Timer.start_timer name in
   try
     let result = w_unify_ORIG env evd cv_pb ~flags ty1 ty2 in
     let _ = Timer.stop_timer name in
+    let _ = Hashtbl.add Timer.w_unify_tbl start_tm (env,ty1,ty2) in
     result
   with exn ->
     let _ = Timer.stop_timer name in
+    let _ = Hashtbl.add Timer.w_unify_tbl start_tm (env,ty1,ty2) in
     raise exn
 
 (* Profiling *)
