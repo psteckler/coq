@@ -216,7 +216,8 @@ let print_call_tree () =
       let call_tree = build_call_tree () in
       let prn_elt (path,tm,start_tm_for_max_tm,max_tm,mem,ct) =
 	let _ = indent ((List.length path) - 1) in
-	let _ = Printf.printf "%s: %0.4f msec, %0.4f max msec, %d heap words, %d calls\n%!" (List.hd path) tm max_tm mem ct in
+	Printf.printf "%s: %0.4f msec, %0.4f max msec, %d heap words, %d calls\n%!" (List.hd path) tm max_tm mem ct
+	(* in
 	if List.hd path = "w_unify" then
 	  try
 	    let (env,ty1,ty2) = Hashtbl.find w_unify_tbl start_tm_for_max_tm in
@@ -236,7 +237,7 @@ let print_call_tree () =
 	    flush stdout
 	  with _ ->
 	    Printf.printf "??? Could not find types yielding max time for check_compatibility\n";
-	    flush stdout
+	   flush stdout *)
       in
       List.iter prn_elt call_tree
     )
@@ -279,9 +280,12 @@ let stop_timer s =
 
     if !total_depth = 0 then (
       print_call_tree ()
-    )
+    );
+
+    tm1 (* return stop time *)
   with (* should not happen *)
-  | Bad_stack s -> Printf.printf "Missing call on stack: %s\n%!" s
+  | Bad_stack s -> Printf.printf "Missing call on stack: %s\n%!" s;
+    raise (Bad_stack s)
   | exn -> (
     Printf.printf "stop_timer, got exception: %s\n%!" (Printexc.to_string exn); 
     raise exn

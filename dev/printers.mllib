@@ -122,13 +122,13 @@ Universes
 Termops
 Namegen
 UState
+Timer
 Evd
 Sigma
 Glob_ops
 Redops
 Pretype_errors
 Evarutil
-Timer
 Reductionops
 Inductiveops
 Arguments_renaming

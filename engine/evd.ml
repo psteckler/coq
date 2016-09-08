@@ -871,7 +871,7 @@ let normalize_sort evars s =
     if u' == u then s else Type u'
 
 (* FIXME inefficient *)
-let set_eq_sort env d s1 s2 =
+let rec set_eq_sort_ORIG env d s1 s2 =
   let s1 = normalize_sort d s1 and s2 = normalize_sort d s2 in
   match is_eq_sort s1 s2 with
   | None -> d
@@ -881,7 +881,17 @@ let set_eq_sort env d s1 s2 =
         (Universes.Constraints.singleton (u1,Universes.UEq,u2))
     else
       d
-
+and set_eq_sort env d s1 s2 =
+  let name = "set_eq_sort" in
+  let _ = Timer.start_timer name in
+  try
+    let result = set_eq_sort_ORIG env d s1 s2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+	
 let has_lub evd u1 u2 =
   if Univ.Universe.equal u1 u2 then evd
   else add_universe_constraints evd
@@ -897,7 +907,7 @@ let set_eq_instances ?(flex=false) d u1 u2 =
   add_universe_constraints d
     (Universes.enforce_eq_instances_univs flex u1 u2 Universes.Constraints.empty)
 
-let set_leq_sort env evd s1 s2 =
+let rec set_leq_sort_ORIG env evd s1 s2 =
   let s1 = normalize_sort evd s1 
   and s2 = normalize_sort evd s2 in
   match is_eq_sort s1 s2 with
@@ -906,7 +916,17 @@ let set_leq_sort env evd s1 s2 =
      if not (type_in_type env) then
        add_universe_constraints evd (Universes.Constraints.singleton (u1,Universes.ULe,u2))
      else evd
-	    
+and set_leq_sort env d s1 s2 =
+  let name = "set_leq_sort" in
+  let _ = Timer.start_timer name in
+  try
+    let result = set_leq_sort_ORIG env d s1 s2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+       
 let check_eq evd s s' =
   UGraph.check_eq (UState.ugraph evd.universes) s s'
 

@@ -775,7 +775,6 @@ and subst_defined_metas_evars (bl,el) c =
     raise exn
 
 
-
 let rec check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
   match subst_defined_metas_evars (metasubst,evarsubst) tyM with
   | None -> sigma
@@ -791,16 +790,27 @@ let rec check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM 
 and check_compatibility env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
   let name = "check_compatibility" in 
   let start_tm = Timer.start_timer name in
+  let print_threshold_msec = 20.0 in
+  let prn_tm stop_tm = 
+    let tm_msec = (stop_tm -. start_tm) *. 1000.0 in
+    if tm_msec >= print_threshold_msec then begin
+      Printf.printf "CHECK_COMPAT TIME: %0.2f msec, for tyM: %s tyN: %s\n"
+	tm_msec
+	(Pp.string_of_ppcmds (Termops.print_constr_env env tyM))
+	(Pp.string_of_ppcmds (Termops.print_constr_env env tyN));
+      flush stdout
+    end in
   try
     let result = check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM tyN in
-    let _ = Timer.stop_timer name in
+    let stop_tm = Timer.stop_timer name in
     let _ = Hashtbl.add Timer.check_compat_tbl start_tm (env,tyM,tyN) in
+    let _ = prn_tm stop_tm in
     result
   with exn ->
-    let _ = Timer.stop_timer name in
+    let stop_tm = Timer.stop_timer name in
     let _ = Hashtbl.add Timer.check_compat_tbl start_tm (env,tyM,tyN) in
+    let _ = prn_tm stop_tm in
     raise exn
-
 
 let rec is_neutral_ORIG env ts t =
   let (f, l) = decompose_appvect t in

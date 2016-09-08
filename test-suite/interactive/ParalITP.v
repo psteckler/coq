@@ -23,6 +23,7 @@ Proof using i.
   sleep time.
   idtac.
   sleep time.
+(*  foo. *)
   (* Error, jump back to fix it, then Qed again *)
 (*  exact (i i). *)
   trivial.
@@ -46,3 +47,4 @@ exact a.
 Qed.
 
 End Demo.
+Goal False. 
