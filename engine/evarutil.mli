@@ -20,11 +20,17 @@ val new_meta : unit -> metavariable
 val mk_new_meta : unit -> constr
 
 (** {6 Creating a fresh evar given their type and context} *)
+
+type naming_mode =
+  | KeepUserNameAndRenameExisting
+  | KeepExistingNames
+  | FailIfConflict
+
 val new_evar :
   env -> 'r Sigma.t -> ?src:Loc.t * Evar_kinds.t -> ?filter:Filter.t ->
   ?candidates:constr list -> ?store:Store.t ->
   ?naming:Misctypes.intro_pattern_naming_expr ->
-  ?principal:bool -> types -> (constr, 'r) Sigma.sigma
+  ?principal:bool -> ?hypnaming:naming_mode -> types -> (constr, 'r) Sigma.sigma
 
 val new_pure_evar :
   named_context_val -> 'r Sigma.t -> ?src:Loc.t * Evar_kinds.t -> ?filter:Filter.t ->
@@ -39,18 +45,20 @@ val e_new_evar :
   env -> evar_map ref -> ?src:Loc.t * Evar_kinds.t -> ?filter:Filter.t ->
   ?candidates:constr list -> ?store:Store.t ->
   ?naming:Misctypes.intro_pattern_naming_expr ->
-  ?principal:bool -> types -> constr
+  ?principal:bool -> ?hypnaming:naming_mode -> types -> constr
 
 (** Create a new Type existential variable, as we keep track of 
     them during type-checking and unification. *)
 val new_type_evar :
   env -> 'r Sigma.t -> ?src:Loc.t * Evar_kinds.t -> ?filter:Filter.t ->
-  ?naming:Misctypes.intro_pattern_naming_expr -> ?principal:bool -> rigid ->
+  ?naming:Misctypes.intro_pattern_naming_expr ->
+  ?principal:bool -> ?hypnaming:naming_mode -> rigid ->
   (constr * sorts, 'r) Sigma.sigma
 
 val e_new_type_evar : env -> evar_map ref ->
   ?src:Loc.t * Evar_kinds.t -> ?filter:Filter.t ->
-  ?naming:Misctypes.intro_pattern_naming_expr -> ?principal:bool -> rigid -> constr * sorts
+  ?naming:Misctypes.intro_pattern_naming_expr ->
+  ?principal:bool -> ?hypnaming:naming_mode -> rigid -> constr * sorts
 
 val new_Type : ?rigid:rigid -> env -> 'r Sigma.t -> (constr, 'r) Sigma.sigma
 val e_new_Type : ?rigid:rigid -> env -> evar_map ref -> constr
@@ -214,10 +222,11 @@ type ext_named_context =
   csubst * (Id.t * Constr.constr) list *
   Id.Set.t * Context.Named.t
 
-val push_rel_decl_to_named_context :
+val push_rel_decl_to_named_context : ?hypnaming:naming_mode ->
   Context.Rel.Declaration.t -> ext_named_context -> ext_named_context
 
-val push_rel_context_to_named_context : Environ.env -> types ->
+val push_rel_context_to_named_context : ?hypnaming:naming_mode ->
+  Environ.env -> types ->
   named_context_val * types * constr list * csubst * (identifier*constr) list
 
 val generalize_evar_over_rels : evar_map -> existential -> types * constr list

@@ -330,7 +330,13 @@ let push_var id (n, s) =
   let s = Int.Map.add n (mkVar id) s in
   (succ n, s)
 
-let push_rel_decl_to_named_context decl (subst, vsubst, avoid, nc) =
+type naming_mode =
+  | KeepUserNameAndRenameExisting
+  | KeepExistingNames
+  | FailIfConflict
+
+let push_rel_decl_to_named_context ?hypnaming decl (subst, vsubst, avoid, nc) =
+  let naming_mode = match hypnaming with None -> KeepExistingNames | Some m -> m in
   let open Context.Named.Declaration in
   let replace_var_named_declaration id0 id decl =
     let id' = get_id decl in
@@ -359,7 +365,8 @@ let push_rel_decl_to_named_context decl (subst, vsubst, avoid, nc) =
       next_ident_away (id_of_name_using_hdchar empty_env t na) avoid
   in
   match extract_if_neq id na with
-  | Some id0 when not (is_section_variable id0) ->
+  | Some id0 when not (is_section_variable id0)
+                  && naming_mode == KeepUserNameAndRenameExisting ->
       (* spiwack: if [id<>id0], rather than introducing a new
           binding named [id], we will keep [id0] (the name given
           by the user) and rename [id0] into [id] in the named
@@ -372,6 +379,8 @@ let push_rel_decl_to_named_context decl (subst, vsubst, avoid, nc) =
       in
       let nc = List.map (replace_var_named_declaration id0 id) nc in
       (push_var id0 subst, vsubst, Id.Set.add id avoid, d :: nc)
+  | Some id0 when naming_mode == FailIfConflict ->
+       errorlabstrm "" Pp.(Nameops.pr_id id0 ++ str " is already used.")
   | _ ->
       (* spiwack: if [id0] is a section variable renaming it is
           incorrect. We revert to a less robust behaviour where
@@ -383,7 +392,7 @@ let push_rel_decl_to_named_context decl (subst, vsubst, avoid, nc) =
       in
       (push_var id subst, vsubst, Id.Set.add id avoid, d :: nc)
 
-let push_rel_context_to_named_context env typ =
+let push_rel_context_to_named_context ?hypnaming env typ =
   (* compute the instances relative to the named context and rel_context *)
   let open Context.Named.Declaration in
   let ids = List.map get_id (named_context env) in
@@ -397,7 +406,7 @@ let push_rel_context_to_named_context env typ =
     (* with vars of the rel context *)
     (* We do keep the instances corresponding to local definition (see above) *)
     let (subst, vsubst, _, env) =
-      Context.Rel.fold_outside push_rel_decl_to_named_context
+      Context.Rel.fold_outside (push_rel_decl_to_named_context ?hypnaming)
         (rel_context env) ~init:(empty_csubst, [], avoid, named_context env) in
     (val_of_named_context env, subst2 subst vsubst typ, inst_rels@inst_vars, subst, vsubst)
 
@@ -446,8 +455,8 @@ let new_evar_instance sign evd typ ?src ?filter ?candidates ?store ?naming ?prin
 
 (* [new_evar] declares a new existential in an env env with type typ *)
 (* Converting the env into the sign of the evar to define *)
-let new_evar env evd ?src ?filter ?candidates ?store ?naming ?principal typ =
-  let sign,typ',instance,subst,vsubst = push_rel_context_to_named_context env typ in
+let new_evar env evd ?src ?filter ?candidates ?store ?naming ?principal ?hypnaming typ =
+  let sign,typ',instance,subst,vsubst = push_rel_context_to_named_context ?hypnaming env typ in
   let candidates = Option.map (List.map (subst2 subst vsubst)) candidates in
   let instance =
     match filter with
@@ -455,19 +464,19 @@ let new_evar env evd ?src ?filter ?candidates ?store ?naming ?principal typ =
     | Some filter -> Filter.filter_list filter instance in
   new_evar_instance sign evd typ' ?src ?filter ?candidates ?store ?naming ?principal instance
 
-let new_evar_unsafe env evd ?src ?filter ?candidates ?store ?naming ?principal typ =
+let new_evar_unsafe env evd ?src ?filter ?candidates ?store ?naming ?principal ?hypnaming typ =
   let evd = Sigma.Unsafe.of_evar_map evd in
-  let Sigma (evk, evd, _) = new_evar env evd ?src ?filter ?candidates ?store ?naming ?principal typ in
+  let Sigma (evk, evd, _) = new_evar env evd ?src ?filter ?candidates ?store ?naming ?principal ?hypnaming typ in
   (Sigma.to_evar_map evd, evk)
 
-let new_type_evar env evd ?src ?filter ?naming ?principal rigid =
+let new_type_evar env evd ?src ?filter ?naming ?principal ?hypnaming rigid =
   let Sigma (s, evd', p) = Sigma.new_sort_variable rigid evd in
-  let Sigma (e, evd', q) = new_evar env evd' ?src ?filter ?naming ?principal (mkSort s) in
+  let Sigma (e, evd', q) = new_evar env evd' ?src ?filter ?naming ?principal ?hypnaming (mkSort s) in
   Sigma ((e, s), evd', p +> q)
 
-let e_new_type_evar env evdref ?src ?filter ?naming ?principal rigid =
+let e_new_type_evar env evdref ?src ?filter ?naming ?principal ?hypnaming rigid =
   let sigma = Sigma.Unsafe.of_evar_map !evdref in
-  let Sigma (c, sigma, _) = new_type_evar env sigma ?src ?filter ?naming ?principal rigid in
+  let Sigma (c, sigma, _) = new_type_evar env sigma ?src ?filter ?naming ?principal ?hypnaming rigid in
   let sigma = Sigma.to_evar_map sigma in
     evdref := sigma;
     c
@@ -481,8 +490,8 @@ let e_new_Type ?(rigid=Evd.univ_flexible) env evdref =
     evdref := evd'; mkSort s
 
   (* The same using side-effect *)
-let e_new_evar env evdref ?(src=default_source) ?filter ?candidates ?store ?naming ?principal ty =
-  let (evd',ev) = new_evar_unsafe env !evdref ~src:src ?filter ?candidates ?store ?naming ?principal ty in
+let e_new_evar env evdref ?(src=default_source) ?filter ?candidates ?store ?naming ?principal ?hypnaming ty =
+  let (evd',ev) = new_evar_unsafe env !evdref ~src:src ?filter ?candidates ?store ?naming ?principal ?hypnaming ty in
   evdref := evd';
   ev
 
