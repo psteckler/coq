@@ -41,6 +41,11 @@ let with_extra_values o l f x =
     let () = o := old in
     Exninfo.iraise reraise
 
+let report_kernel_reductions = ref false
+(* these can't be exceeded, disabling kernel reduction reporting *)
+let kernel_abs_threshold = ref max_float
+let kernel_pct_threshold = ref max_float
+  
 let boot = ref false
 let load_init = ref true
 let batch_mode = ref false

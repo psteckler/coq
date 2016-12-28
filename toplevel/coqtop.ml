@@ -481,6 +481,12 @@ let parse_args arglist =
         while is_not_dash_option (peek_next ()) do add_vio_file (next ()); done
 
     (* Options with one arg *)
+    |"-kernel_abs_threshold" ->
+       (Flags.report_kernel_reductions := true;
+	Flags.kernel_abs_threshold := get_float opt (next ()))
+    |"-kernel_pct_threshold" ->
+       (Flags.report_kernel_reductions := true;
+	Flags.kernel_pct_threshold := get_float opt (next ()))
     |"-coqlib" -> Flags.coqlib_spec:=true; Flags.coqlib:=(next ())
     |"-async-proofs" ->
         Flags.async_proofs_mode := get_async_proofs_mode opt (next())

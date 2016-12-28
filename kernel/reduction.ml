@@ -188,11 +188,6 @@ let conv_table_key infos k1 k2 cuniv =
   | RelKey n, RelKey n' when Int.equal n n' -> cuniv
   | _ -> raise NotConvertible
 
-(* percentage threshold of difference in stack conversion strategy for reportability *)
-let tm_pct_diff_threshold = 10.0
-(* absolute time threshold for reportability *)
-let tm_absolute_threshold = 0.001
-  
 (* [compare_stacks] compares stacks for equality, starting from the head.
    Application nodes are compared left to right, like in unification. *)
 let compare_stacks_unpatched f fmind lft1 stk1 lft2 stk2 cuniv =
@@ -555,10 +550,10 @@ and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
      | _ -> raise NotConvertible
 
 and is_reportable tm1 tm2 =
-  min tm1 tm2 >= tm_absolute_threshold &&
+  min tm1 tm2 >= !Flags.kernel_abs_threshold &&
     let tm_pct_diff = 100.0 *. (abs_float ((tm1 -. tm2) /. tm2))
     in
-    tm_pct_diff >= tm_pct_diff_threshold
+    tm_pct_diff >= !Flags.kernel_pct_threshold
 	
 and tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 =
   if is_reportable tm_patched tm_unpatched then (
@@ -580,21 +575,25 @@ and tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 =
 	Printf.printf "  TERM 1: %s\n" (show_lft_constr_stack_elt z1))
     | ([],z2::_) ->
        (Printf.printf "TOP TERM ON 2ND STACK ONLY:\n";
-	Printf.printf "  TERM 2: %s\n" (show_lft_constr_stack_elt z2)));
+	Printf.printf "  TERM 2: %s\n" (show_lft_constr_stack_elt z2))
+    | _ -> Printf.printf "EMPTY STACKS\n");
     Printf.printf "\n"
   )
     
 and convert_stacks l2r infos lft1 lft2 stk1 stk2 cuniv =
-  (* run patched version just for timing *)
   let tm0 = Unix.gettimeofday () in
   let _ =
-    try 
-      ignore(compare_stacks_patched
-	(fun cuniv (l1,t1) (l2,t2) -> ccnv CONV l2r infos l1 l2 t1 t2 cuniv)
-	(eq_ind)
-	lft1 stk1 lft2 stk2 cuniv);
-      ()
-    with NotConvertible ->
+    (* run patched version just for timing, if reporting flag set *)
+    if !Flags.report_kernel_reductions then (
+      try 
+	ignore(compare_stacks_patched
+		 (fun cuniv (l1,t1) (l2,t2) -> ccnv CONV l2r infos l1 l2 t1 t2 cuniv)
+		 (eq_ind)
+		 lft1 stk1 lft2 stk2 cuniv);
+	()
+      with NotConvertible ->
+	())
+    else
       ()
   in
   let tm_patched = Unix.gettimeofday () -. tm0 in
@@ -607,11 +606,19 @@ and convert_stacks l2r infos lft1 lft2 stk1 stk2 cuniv =
 	(eq_ind)
 	lft1 stk1 lft2 stk2 cuniv in
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
-    let _ = tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 in
+    let _ =
+      if !Flags.report_kernel_reductions then 
+	tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 
+      else ()
+    in
     result
   with NotConvertible ->
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
-    let _ = tm_report tm_patched tm_unpatched in
+    let _ =
+      if !Flags.report_kernel_reductions then 
+	tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 
+      else ()
+    in
     raise NotConvertible
     
 and convert_vect l2r infos lft1 lft2 v1 v2 cuniv =

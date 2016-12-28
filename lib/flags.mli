@@ -11,6 +11,10 @@
 val boot : bool ref
 val load_init : bool ref
 
+val report_kernel_reductions : bool ref
+val kernel_abs_threshold : float ref
+val kernel_pct_threshold : float ref
+
 val batch_mode : bool ref
 type compilation_mode = BuildVo | BuildVio | Vio2Vo
 val compilation_mode : compilation_mode ref
