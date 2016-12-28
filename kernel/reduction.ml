@@ -22,6 +22,7 @@ open Term
 open Vars
 open Environ
 open CClosure
+open Constr
 open Esubst
 open Context.Rel.Declaration
 
@@ -66,7 +67,8 @@ type lft_constr_stack_elt =
   | Zlfix of (lift * fconstr) * lft_constr_stack
   | Zlcase of case_info * lift * fconstr * fconstr array
 and lft_constr_stack = lft_constr_stack_elt list
-
+  [@@deriving show]
+  
 let rec zlapp v = function
     Zlapp v2 :: s -> zlapp (Array.append v v2) s
   | s -> Zlapp v :: s
@@ -186,7 +188,14 @@ let conv_table_key infos k1 k2 cuniv =
   | RelKey n, RelKey n' when Int.equal n n' -> cuniv
   | _ -> raise NotConvertible
 
-let compare_stacks f fmind lft1 stk1 lft2 stk2 cuniv =
+(* threshold of difference in stack conversion strategy which, when exceeded, results in 
+   printing responsible terms 
+*)
+let tm_threshold = 0.10
+     
+(* [compare_stacks] compares stacks for equality, starting from the head.
+   Application nodes are compared left to right, like in unification. *)
+let compare_stacks_unpatched f fmind lft1 stk1 lft2 stk2 cuniv =
   let rec cmp_rec pstk1 pstk2 cuniv =
     match (pstk1,pstk2) with
       | (z1::s1, z2::s2) ->
@@ -207,6 +216,34 @@ let compare_stacks f fmind lft1 stk1 lft2 stk2 cuniv =
 		let cu2 = f (l1,p1) (l2,p2) cu1 in
                 Array.fold_right2 (fun c1 c2 -> f (l1,c1) (l2,c2)) br1 br2 cu2
             | _ -> assert false)
+      | _ -> cuniv in
+  if compare_stack_shape stk1 stk2 then
+    cmp_rec (pure_stack lft1 stk1) (pure_stack lft2 stk2) cuniv
+  else raise NotConvertible
+
+let compare_stacks_patched f fmind lft1 stk1 lft2 stk2 cuniv =
+  let rec cmp_rec pstk1 pstk2 cuniv =
+    match (pstk1,pstk2) with
+      | (z1::s1, z2::s2) ->
+          let cuniv = match (z1,z2) with
+            | (Zlapp a1,Zlapp a2) -> 
+	       Array.fold_left2 f cuniv a1 a2
+	    | (Zlproj (c1,l1),Zlproj (c2,l2)) -> 
+	      if not (eq_constant c1 c2) then 
+		raise NotConvertible
+	      else cuniv
+            | (Zlfix(fx1,a1),Zlfix(fx2,a2)) ->
+                let cuniv = f cuniv fx1 fx2 in
+                cmp_rec a1 a2 cuniv
+            | (Zlcase(ci1,l1,p1,br1),Zlcase(ci2,l2,p2,br2)) ->
+                if not (fmind ci1.ci_ind ci2.ci_ind) then
+		  raise NotConvertible;
+		let cuniv = f cuniv (l1,p1) (l2,p2) in
+                (* Do we want to compare right to left here? *)
+                Array.fold_right2 (fun c1 c2 cuniv -> f cuniv (l1,c1) (l2,c2)) br1 br2 cuniv
+            | _ -> assert false
+           in
+          cmp_rec s1 s2 cuniv
       | _ -> cuniv in
   if compare_stack_shape stk1 stk2 then
     cmp_rec (pure_stack lft1 stk1) (pure_stack lft2 stk2) cuniv
@@ -517,12 +554,61 @@ and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
      (* In all other cases, terms are not convertible *)
      | _ -> raise NotConvertible
 
+and tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 =
+  let tm_diff = abs_float ((tm_patched -. tm_unpatched) /. tm_unpatched) in
+  if tm_diff >= tm_threshold then (
+    Printf.printf "*** EXCEEDS THRESHOLD ***\n";
+    Printf.printf "TM_UNPATCHED: %0.10f\n" tm_unpatched;
+    Printf.printf "TM_PATCHED  : %0.10f\n" tm_patched;
+    Printf.printf "TIME DIFFERENCE IS %0.1f%%\n" (tm_diff *. 100.0);
+    let pstk1 = pure_stack lft1 stk1 in
+    let pstk2 = pure_stack lft2 stk2 in
+    ())
+    (*
+    match (pstk1,pstk2) with
+    | (z1::_,z2::_) ->
+       (Printf.printf "TOP TERMS ON STACK:\n";
+	Printf.printf "  %s\n" (string_of_stack_elt z1);
+       Printf.printf "  %s\n\n" (string_of_stack_elt z2))
+    | (z1::_,[]) ->
+       (Printf.printf "TOP TERM ON 1ST STACK ONLY\n";
+       Printf.printf "  %s\n\n" (string_of_stack_elt z1))
+    | ([],z2::_) ->
+       (Printf.printf "TOP TERM ON 2ND STACK ONLY:\n";
+	Printf.printf "  %s\n\n" (string_of_stack_elt z2))
+  )
+*)
+    
 and convert_stacks l2r infos lft1 lft2 stk1 stk2 cuniv =
-  compare_stacks
-    (fun (l1,t1) (l2,t2) cuniv -> ccnv CONV l2r infos l1 l2 t1 t2 cuniv)
-    (eq_ind)
-    lft1 stk1 lft2 stk2 cuniv
-
+  (* run patched version just for timing *)
+  let tm0 = Unix.gettimeofday () in
+  let _ =
+    try 
+      ignore(compare_stacks_patched
+	(fun cuniv (l1,t1) (l2,t2) -> ccnv CONV l2r infos l1 l2 t1 t2 cuniv)
+	(eq_ind)
+	lft1 stk1 lft2 stk2 cuniv);
+      ()
+    with NotConvertible ->
+      ()
+  in
+  let tm_patched = Unix.gettimeofday () -. tm0 in
+  (* run unpatched version for timing and result *)
+  let tm1 = Unix.gettimeofday () in
+  try
+    let result =
+      compare_stacks_unpatched
+	(fun (l1,t1) (l2,t2) cuniv -> ccnv CONV l2r infos l1 l2 t1 t2 cuniv)
+	(eq_ind)
+	lft1 stk1 lft2 stk2 cuniv in
+    let tm_unpatched = Unix.gettimeofday () -. tm1 in
+    (*    let _ = tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 in *)
+    result
+  with NotConvertible ->
+    let tm_unpatched = Unix.gettimeofday () -. tm1 in
+    (*    let _ = tm_report tm_patched tm_unpatched in *)
+    raise NotConvertible
+    
 and convert_vect l2r infos lft1 lft2 v1 v2 cuniv =
   let lv1 = Array.length v1 in
   let lv2 = Array.length v2 in

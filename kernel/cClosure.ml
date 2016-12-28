@@ -27,6 +27,7 @@ open Term
 open Vars
 open Environ
 open Esubst
+open Constr
 
 let stats = ref false
 let share = ref true
@@ -235,7 +236,8 @@ let unfold_red kn =
  *)
 
 type table_key = constant puniverses tableKey
-
+  [@@deriving show]
+  
 let eq_pconstant_key (c,u) (c',u') =
   eq_constant_key c c' && Univ.Instance.equal u u'
 
@@ -350,7 +352,8 @@ let create mk_cl flgs env evars =
    Red is used for terms that might be reduced
 *)
 type red_state = Norm | Cstr | Whnf | Red
-
+    [@@deriving show]
+    
 let neutr = function
   | (Whnf|Norm) -> Whnf
   | (Red|Cstr) -> Red
@@ -358,7 +361,8 @@ let neutr = function
 type fconstr = {
   mutable norm: red_state;
   mutable term: fterm }
-
+  [@@deriving show]
+  
 and fterm =
   | FRel of int
   | FAtom of constr (* Metas and Sorts *)
@@ -378,6 +382,7 @@ and fterm =
   | FLIFT of int * fconstr
   | FCLOS of constr * fconstr subs
   | FLOCKED
+  [@@deriving show]
 
 let fterm_of v = v.term
 let set_norm v = v.norm <- Norm

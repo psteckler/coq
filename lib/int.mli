@@ -9,7 +9,8 @@
 (** A native integer module with usual utility functions. *)
 
 type t = int
-
+  [@@deriving show]
+  
 external equal : t -> t -> bool = "%eq"
 
 external compare : t -> t -> int = "caml_int_compare"

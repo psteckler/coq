@@ -9,12 +9,14 @@
 open Univ
 
 type contents = Pos | Null
-
+    [@@deriving show]
+    
 type family = InProp | InSet | InType
 
 type t =
   | Prop of contents                      (* proposition types *)
   | Type of universe
+    [@@deriving show]
 
 let prop = Prop Null
 let set = Prop Pos

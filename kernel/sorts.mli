@@ -9,12 +9,14 @@
 (** {6 The sorts of CCI. } *)
 
 type contents = Pos | Null
+    [@@deriving show]
 
 type family = InProp | InSet | InType
 
 type t =
 | Prop of contents       (** Prop and Set *)
 | Type of Univ.universe  (** Type *)
+    [@@deriving show]
 
 val set  : t
 val prop : t

@@ -27,7 +27,8 @@ open Util
 module Id =
 struct
   type t = string
-
+    [@@deriving show]
+    
   let equal = String.equal
 
   let compare = String.compare
@@ -87,7 +88,8 @@ module Name =
 struct
   type t = Anonymous     (** anonymous identifier *)
 	 | Name of Id.t  (** non-anonymous identifier *)
-
+    [@@deriving show]
+	     
   let mk_name id =
     Name id
 
@@ -143,7 +145,8 @@ type name = Name.t = Anonymous | Name of Id.t
 type variable = Id.t
 
 type module_ident = Id.t
-
+  [@@deriving show]
+  
 module ModIdset = Id.Set
 module ModIdmap = Id.Map
 
@@ -158,7 +161,8 @@ let default_module_name = "If you see this, it's a bug"
 module DirPath =
 struct
   type t = module_ident list
-
+    [@@deriving show]
+    
   let rec compare (p1 : t) (p2 : t) =
     if p1 == p2 then 0
     else begin match p1, p2 with
@@ -207,7 +211,8 @@ end
 module MBId =
 struct
   type t = int * Id.t * DirPath.t
-
+    [@@deriving show]
+    
   let gen =
     let seed = ref 0 in fun () ->
       let ans = !seed in
@@ -287,7 +292,8 @@ module ModPath = struct
     | MPfile of DirPath.t
     | MPbound of MBId.t
     | MPdot of t * Label.t
-
+	[@@deriving show]
+	
   type module_path = t
 
   let rec is_bound = function
@@ -383,7 +389,8 @@ module KerName = struct
     mutable refhash : int;
     (** Lazily computed hash. If unset, it is set to negative values. *)
   }
-
+    [@@deriving show]
+    
   let canary = Canary.obj
 
   type kernel_name = t
@@ -492,7 +499,8 @@ module KerPair = struct
   type t =
     | Same of KerName.t (** user = canonical *)
     | Dual of KerName.t * KerName.t (** user then canonical *)
-
+	[@@deriving show]
+	
   type kernel_pair = t
 
   let canonical = function
@@ -628,12 +636,14 @@ type inductive = MutInd.t      (* the name of the inductive type *)
                * int           (* the position of this inductive type
                                   within the block of mutually-recursive inductive types.
                                   BEWARE: indexing starts from 0. *)
-
+		 [@@deriving show]
+		 
 (** Designation of a (particular) constructor of a (particular) inductive type. *)
 type constructor = inductive   (* designates the inductive type *)
                  * int         (* the index of the constructor
                                   BEWARE: indexing starts from 1. *)
-
+		   [@@deriving show]
+		   
 let ind_modpath (mind,_) = MutInd.modpath mind
 let constr_modpath (ind,_) = ind_modpath ind
 
@@ -762,7 +772,8 @@ type 'a tableKey =
   | ConstKey of 'a
   | VarKey of Id.t
   | RelKey of Int.t
-
+  [@@deriving show]
+      
 type inv_rel_key = int (* index in the [rel_context] part of environment
 			  starting by the end, {\em inverse}
 			  of de Bruijn indice *)
@@ -859,12 +870,13 @@ let kn_ord = KerName.compare
 (** Compatibility layer for [Constant] *)
 
 type constant = Constant.t
-
+  [@@deriving show]
+  
 
 module Projection = 
 struct 
   type t = constant * bool
-    
+    [@@deriving show]
   let make c b = (c, b)
 
   let constant = fst
@@ -912,7 +924,8 @@ struct
 end
 
 type projection = Projection.t
-
+  [@@deriving show]
+  
 let constant_of_kn = Constant.make1
 let constant_of_kn_equiv = Constant.make
 let make_con = Constant.make3

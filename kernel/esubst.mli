@@ -21,6 +21,7 @@ type 'a subs = private
   | CONS of 'a array * 'a subs
   | SHIFT of int * 'a subs
   | LIFT of int * 'a subs
+      [@@deriving show]
 
 (** Derived constructors granting basic invariants *)
 val subs_id : int -> 'a subs
@@ -59,6 +60,7 @@ type lift = private
   | ELID
   | ELSHFT of lift * int
   | ELLFT of int * lift
+      [@@deriving show]
 
 val el_id : lift
 val el_shft : int -> lift -> lift

@@ -109,8 +109,8 @@ MLINCLUDES=$(LOCALINCLUDES) -I $(MYCAMLP4LIB)
 OCAMLC := $(OCAMLFIND) ocamlc $(CAMLFLAGS)
 OCAMLOPT := $(OCAMLFIND) opt $(CAMLFLAGS)
 
-BYTEFLAGS=-thread $(CAMLDEBUG) $(USERFLAGS)
-OPTFLAGS=-thread $(CAMLDEBUGOPT) $(CAMLTIMEPROF) $(USERFLAGS)
+BYTEFLAGS=-thread $(CAMLDEBUG) $(USERFLAGS) -package ppx_deriving.std
+OPTFLAGS=-thread $(CAMLDEBUGOPT) $(CAMLTIMEPROF) $(USERFLAGS) -package ppx_deriving.std
 DEPFLAGS= $(LOCALINCLUDES) -I ide -I ide/utils
 
 # On MacOS, the binaries are signed, except our private ones

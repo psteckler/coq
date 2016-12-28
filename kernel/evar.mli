@@ -12,6 +12,7 @@
     function. *)
 
 type t
+  [@@deriving show]
 (** Type of existential variables. *)
 
 val repr : t -> int

@@ -7,7 +7,8 @@
 (************************************************************************)
 
 type t = int
-
+  [@@deriving show]
+  
 external equal : int -> int -> bool = "%eq"
 
 external compare : int -> int -> int = "caml_int_compare"

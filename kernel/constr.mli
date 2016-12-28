@@ -13,18 +13,24 @@ open Names
 
 (** {6 Value under universe substitution } *)
 type 'a puniverses = 'a Univ.puniverses
-
+  [@@deriving show]
+  
 (** {6 Simply type aliases } *)
 type pconstant = constant puniverses
+  [@@deriving show]
 type pinductive = inductive puniverses
+  [@@deriving show]
 type pconstructor = constructor puniverses
-
+  [@@deriving show]
+  
 (** {6 Existential variables } *)
 type existential_key = Evar.t
-
+  [@@deriving show]
+  
 (** {6 Existential variables } *)
 type metavariable = int
-
+  [@@deriving show]
+  
 (** {6 Case annotation } *)
 type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle 
   | RegularStyle (** infer printing form from number of constructor *)
@@ -51,11 +57,18 @@ type case_info =
                                        NOTE: parameters of the inductive type are also excluded from the count *)
     ci_pp_info    : case_printing   (* not interpreted by the kernel *)
   }
-
+    [@@deriving show]
+    
 (** {6 The type of constructions } *)
 
 type t
+  [@@deriving show]
+  
 type constr = t
+  [@@deriving show]
+
+val pp_constr : Format.formatter -> constr -> Ppx_deriving_runtime.unit  
+
 (** [types] is the same as [constr] but is intended to be used for
    documentation to indicate that such or such function specifically works
    with {e types} (i.e. terms of type a sort).
@@ -81,6 +94,7 @@ val mkMeta : metavariable -> constr
 
 (** Constructs an existential variable *)
 type existential = existential_key * constr array
+  [@@deriving show]
 val mkEvar : existential -> constr
 
 (** Construct a sort *)
@@ -92,6 +106,7 @@ val mkType : Univ.universe -> types
 
 (** This defines the strategy to use for verifiying a Cast *)
 type cast_kind = VMcast | NATIVEcast | DEFAULTcast | REVERTcast
+    [@@deriving show]
 
 (** Constructs the term [t1::t2], i.e. the term t{_ 1} casted with the
    type t{_ 2} (that means t2 is declared as the type of t1). *)
@@ -158,7 +173,10 @@ val mkCase : case_info * constr * constr * constr array -> constr
    where the length of the {% $ %}j{% $ %}th context is {% $ %}ij{% $ %}.
 *)
 type rec_declaration = Name.t array * types array * constr array
+  [@@deriving show]
+
 type fixpoint = (int array * int) * rec_declaration
+  [@@deriving show]
 val mkFix : fixpoint -> constr
 
 (** If [funnames = [|f1,.....fn|]]
@@ -173,6 +191,8 @@ val mkFix : fixpoint -> constr
      with       fn = bn.]
  *)
 type cofixpoint = int * rec_declaration
+    [@@deriving show]
+
 val mkCoFix : cofixpoint -> constr
 
 
@@ -181,6 +201,7 @@ val mkCoFix : cofixpoint -> constr
 (** [constr array] is an instance matching definitional [named_context] in
    the same order (i.e. last argument first) *)
 type 'constr pexistential = existential_key * 'constr array
+  [@@deriving show]
 type ('constr, 'types) prec_declaration =
     Name.t array * 'types array * 'constr array
 type ('constr, 'types) pfixpoint =
@@ -217,6 +238,7 @@ type ('constr, 'types) kind_of_term =
   | Fix       of ('constr, 'types) pfixpoint
   | CoFix     of ('constr, 'types) pcofixpoint
   | Proj      of projection * 'constr
+      [@@deriving show]
 
 (** User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative

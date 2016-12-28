@@ -28,6 +28,7 @@ open Util
 module Id :
 sig
   type t
+    [@@deriving show]
   (** Values of this type represent (Coq) identifiers. *)
 
   val equal : t -> t -> bool
@@ -81,7 +82,8 @@ module Name :
 sig
   type t = Anonymous     (** anonymous identifier *)
 	 | Name of Id.t  (** non-anonymous identifier *)
-
+    [@@deriving show]
+	     
   val mk_name : Id.t -> t
   (** constructor *)
 
@@ -119,6 +121,7 @@ module ModIdmap : Map.ExtS with type key = module_ident and module Set := ModIds
 module DirPath :
 sig
   type t
+    [@@deriving show]
   (** Type of directory paths. Essentially a list of module identifiers. The
       order is reversed to improve sharing. E.g. A.B.C is ["C";"B";"A"] *)
 
@@ -299,7 +302,8 @@ module KNmap  : Map.ExtS with type key = KerName.t and module Set := KNset
 module Constant:
 sig
   type t
-
+    [@@deriving show]
+    
   (** Constructors *)
 
   val make : KerName.t -> KerName.t -> t
@@ -457,11 +461,13 @@ type inductive = MutInd.t      (* the name of the inductive type *)
                * int           (* the position of this inductive type
                                   within the block of mutually-recursive inductive types.
                                   BEWARE: indexing starts from 0. *)
-
+		 [@@deriving show]
+		 
 (** Designation of a (particular) constructor of a (particular) inductive type. *)
 type constructor = inductive   (* designates the inductive type *)
                  * int         (* the index of the constructor
                                   BEWARE: indexing starts from 1. *)
+		   [@@deriving show]
 
 module Indmap : CSig.MapS with type key = inductive
 module Constrmap : CSig.MapS with type key = constructor
@@ -515,6 +521,7 @@ type 'a tableKey =
   | ConstKey of 'a
   | VarKey of Id.t
   | RelKey of Int.t
+  [@@deriving show]
 
 (** Sets of names *)
 type transparent_state = Id.Pred.t * Cpred.t
@@ -699,6 +706,7 @@ val kn_ord : kernel_name -> kernel_name -> int
 (** {5 Constant names} *)
 
 type constant = Constant.t
+  [@@deriving show]
 (** @deprecated Alias type *)
 
 module Projection : sig
@@ -731,7 +739,8 @@ module Projection : sig
 end
 
 type projection = Projection.t
-
+  [@@deriving show]
+  
 val constant_of_kn_equiv : KerName.t -> KerName.t -> constant
 (** @deprecated Same as [Constant.make] *)
 

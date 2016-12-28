@@ -10,11 +10,17 @@ type t
 (** Type of canaries. Canaries are used to ensure that an object does not use
     generic operations. *)
 
+val pp : Format.formatter -> t -> unit
+val show : t -> bytes
+
 val obj : t
+
 (** Canary. In the current implementation, this object is marshallable,
     forbids generic comparison but still allows generic hashes. *)
 
-module type Obj = sig type t end
+module type Obj =
+sig type t
+end
 
 module Make(M : Obj) :
 sig

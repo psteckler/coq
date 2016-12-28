@@ -93,6 +93,7 @@ val unfold_red : evaluable_global_reference -> reds
 
 (***********************************************************************)
 type table_key = constant puniverses tableKey
+  [@@deriving show]
 
 type 'a infos_cache
 type 'a infos = {
@@ -113,6 +114,7 @@ val info_flags: 'a infos -> reds
 (** [fconstr] is the type of frozen constr *)
 
 type fconstr
+  [@@deriving show]
 
 (** [fconstr] can be accessed by using the function [fterm_of] and by
    matching on type [fterm] *)
@@ -136,6 +138,7 @@ type fterm =
   | FLIFT of int * fconstr
   | FCLOS of constr * fconstr subs
   | FLOCKED
+  [@@deriving show]
 
 (***********************************************************************
   s A [stack] is a context of arguments, arguments are pushed by

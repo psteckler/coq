@@ -79,6 +79,7 @@ module HList = struct
   module type S = sig
     type elt
     type t = private Nil | Cons of elt * int * t
+	
     val hash : t -> int
     val nil : t
     val cons : elt -> t -> t
@@ -95,6 +96,9 @@ module HList = struct
     val compare : (elt -> elt -> int) -> t -> t -> int
   end
 
+  let pp fmt t = ()  
+  let show t = "<hlist>"
+    
   module Make (H : Hashconsed) : S with type elt = H.t =
   struct
   type elt = H.t
@@ -166,7 +170,8 @@ struct
     | Set
     | Level of int * DirPath.t
     | Var of int
-
+	[@@deriving show]
+	
   (* Hash-consing *)
 
   let equal x y =
@@ -237,7 +242,8 @@ module Level = struct
   type t = { 
     hash : int;
     data : RawLevel.t }
-
+    [@@deriving show]
+    
   let equal x y = 
     x == y || Int.equal x.hash y.hash && RawLevel.equal x.data y.data
 
@@ -390,8 +396,9 @@ struct
   module Expr = 
   struct
     type t = Level.t * int
+
     type _t = t
-	
+      
     (* Hashing of expressions *)
     module ExprHash = 
     struct
@@ -527,7 +534,12 @@ struct
   let compare_expr = Expr.compare
 
   module Huniv = HList.Make(Expr.HExpr)
+
   type t = Huniv.t
+
+  let pp fmt t = ()
+  let show t = "<huniv>"
+    
   open Huniv
     
   let equal x y = x == y || 
@@ -654,7 +666,8 @@ struct
 end
 
 type universe = Universe.t
-
+    [@@deriving show]
+  
 (* The level of predicative Set *)
 let type0m_univ = Universe.type0m
 let type0_univ = Universe.type0
@@ -875,7 +888,8 @@ let level_subst_of f =
      
 module Instance : sig 
     type t = Level.t array
-
+      [@@deriving show]
+      
     val empty : t
     val is_empty : t -> bool
       
@@ -898,7 +912,8 @@ module Instance : sig
 end = 
 struct
   type t = Level.t array
-
+    [@@deriving show]
+    
   let empty : t = [||]
 
   module HInstancestruct =
@@ -992,6 +1007,7 @@ let enforce_eq_instances x y =
 type universe_instance = Instance.t
 
 type 'a puniverses = 'a * Instance.t
+  [@@deriving show]
 let out_punivs (x, y) = x
 let in_punivs x = (x, Instance.empty)
 let eq_puniverses f (x, u) (y, u') =

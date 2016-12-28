@@ -28,20 +28,26 @@ open Names
 open Univ
 
 type existential_key = Evar.t
+  [@@deriving show]
+
 type metavariable = int
+  [@@deriving show]
 
 (* This defines the strategy to use for verifiying a Cast *)
 (* Warning: REVERTcast is not exported to vo-files; as of r14492, it has to *)
 (* come after the vo-exported cast_kind so as to be compatible with coqchk *)
 type cast_kind = VMcast | NATIVEcast | DEFAULTcast | REVERTcast
-
+    [@@deriving show]
+    
 (* This defines Cases annotations *)
 type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle | RegularStyle
+    [@@deriving show]
 type case_printing =
   { ind_tags : bool list; (** tell whether letin or lambda in the arity of the inductive type *)
     cstr_tags : bool list array; (* whether each pattern var of each constructor is a let-in (true) or not (false) *)
     style     : case_style }
-
+    [@@deriving show]
+    
 (* INVARIANT:
  * - Array.length ci_cstr_ndecls = Array.length ci_cstr_nargs
  * - forall (i : 0 .. pred (Array.length ci_cstr_ndecls)),
@@ -60,6 +66,8 @@ type case_info =
                                        NOTE: parameters of the inductive type are also excluded from the count *)
     ci_pp_info    : case_printing   (* not interpreted by the kernel *)
   }
+    [@@deriving show]
+    
 
 (********************************************************************)
 (*       Constructions as implemented                               *)
@@ -68,17 +76,28 @@ type case_info =
 (* [constr array] is an instance matching definitional [named_context] in
    the same order (i.e. last argument first) *)
 type 'constr pexistential = existential_key * 'constr array
+  [@@deriving show]
 type ('constr, 'types) prec_declaration =
     Name.t array * 'types array * 'constr array
+      [@@deriving show]
+      
 type ('constr, 'types) pfixpoint =
-    (int array * int) * ('constr, 'types) prec_declaration
+  (int array * int) * ('constr, 'types) prec_declaration
+    [@@deriving show]
+    
 type ('constr, 'types) pcofixpoint =
-    int * ('constr, 'types) prec_declaration
+  int * ('constr, 'types) prec_declaration
+    [@@deriving show]
+    
 type 'a puniverses = 'a Univ.puniverses
+  [@@deriving show]
 type pconstant = constant puniverses
+  [@@deriving show]
 type pinductive = inductive puniverses
+  [@@deriving show]
 type pconstructor = constructor puniverses
-
+  [@@deriving show]
+  
 (* [Var] is used for named variables and [Rel] for variables as
    de Bruijn indices. *)
 type ('constr, 'types) kind_of_term =
@@ -99,16 +118,25 @@ type ('constr, 'types) kind_of_term =
   | Fix       of ('constr, 'types) pfixpoint
   | CoFix     of ('constr, 'types) pcofixpoint
   | Proj      of projection * 'constr
+  [@@deriving show]
+
 (* constr is the fixpoint of the previous type. Requires option
    -rectypes of the Caml compiler to be set *)
 type t = (t,t) kind_of_term
+  [@@deriving show]
+
 type constr = t
+  [@@deriving show]
 
 type existential = existential_key * constr array
+  [@@deriving show]
 type rec_declaration = Name.t array * constr array * constr array
+  [@@deriving show]
 type fixpoint = (int array * int) * rec_declaration
+  [@@deriving show]
 type cofixpoint = int * rec_declaration
-
+  [@@deriving show]
+  
 type types = constr
 
 (*********************)

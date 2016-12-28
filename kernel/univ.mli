@@ -65,6 +65,7 @@ type universe_set = LSet.t
 module Universe :
 sig
   type t
+    [@@deriving show]
   (** Type of universes. A universe is defined as a set of level expressions.
       A level expression is built from levels and successors of level expressions, i.e.:
       le ::= l + n, n \in N.
@@ -124,7 +125,8 @@ sig
 end
 
 type universe = Universe.t
-
+  [@@deriving show]
+  
 (** Alias name. *)
 
 val pr_uni : universe -> Pp.std_ppcmds
@@ -240,6 +242,7 @@ val level_subst_of : universe_subst_fn -> universe_level_subst_fn
 module Instance : 
 sig
   type t
+    [@@deriving show]
   (** A universe instance represents a vector of argument universes
       to a polymorphic definition (constant, inductive or constructor). *)
 
@@ -283,6 +286,7 @@ type universe_instance = Instance.t
 val enforce_eq_instances : universe_instance constraint_function
 
 type 'a puniverses = 'a * universe_instance
+  [@@deriving show]
 val out_punivs : 'a puniverses -> 'a
 val in_punivs : 'a -> 'a puniverses
 

@@ -22,7 +22,8 @@ type lift =
   | ELSHFT of lift * int (* ELSHFT(l,n) == lift of n, then apply lift l *)
   | ELLFT of int * lift  (* ELLFT(n,l)  == apply l to de Bruijn > n *)
                          (*                 i.e under n binders *)
-
+      [@@deriving show]
+      
 let el_id = ELID
 
 (* compose a relocation of magnitude n *)
@@ -66,7 +67,8 @@ type 'a subs =
   | SHIFT of int * 'a subs (* SHIFT(n,S) = (^n o S) terms in S are relocated *)
                            (*                        with n vars *)
   | LIFT of int * 'a subs  (* LIFT(n,S) = (%n S) stands for ((^n o S).n...1) *)
-
+      [@@deriving show]
+      
 (* operations of subs: collapses constructors when possible.
  * Needn't be recursive if we always use these functions
  *)

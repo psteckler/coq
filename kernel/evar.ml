@@ -7,7 +7,8 @@
 (************************************************************************)
 
 type t = int
-
+  [@@deriving show]
+  
 let repr x = x
 let unsafe_of_int x = x
 let compare = Int.compare
