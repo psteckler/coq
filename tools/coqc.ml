@@ -102,17 +102,18 @@ let parse_args () =
 (* Options for coqtop : b) options with 1 argument *)
 
     | ("-outputstate"|"-inputstate"|"-is"|"-exclude-dir"|"-color"
-      |"-load-vernac-source"|"-l"|"-load-vernac-object"
-      |"-load-ml-source"|"-require"|"-load-ml-object"
-      |"-init-file"|"-dump-glob"|"-compat"|"-coqlib"|"-top"
-      |"-async-proofs-j" |"-async-proofs-private-flags" |"-async-proofs" |"-w"
-      |"-o"|"-profile-ltac-cutoff" 
-      as o) :: rem ->
-	begin
-	  match rem with
-	    | s :: rem' -> parse (cfiles,s::o::args) rem'
-	    | []        -> usage ()
-	end
+    |"-kernel_abs_threshold"|"-kernel_pct_threshold"
+    |"-load-vernac-source"|"-l"|"-load-vernac-object"
+    |"-load-ml-source"|"-require"|"-load-ml-object"
+    |"-init-file"|"-dump-glob"|"-compat"|"-coqlib"|"-top"
+    |"-async-proofs-j" |"-async-proofs-private-flags" |"-async-proofs" |"-w"
+    |"-o"|"-profile-ltac-cutoff" 
+	as o) :: rem ->
+       begin
+	 match rem with
+	 | s :: rem' -> parse (cfiles,s::o::args) rem'
+	 | []        -> usage ()
+       end
     | ("-I"|"-include" as o) :: s :: rem -> parse (cfiles,s::o::args) rem
 
 (* Options for coqtop : c) options with 1 argument and possibly more *)
