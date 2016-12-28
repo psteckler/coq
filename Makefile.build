@@ -111,6 +111,7 @@ OCAMLOPT := $(OCAMLFIND) opt $(CAMLFLAGS)
 
 BYTEFLAGS=-thread $(CAMLDEBUG) $(USERFLAGS) -package ppx_deriving.std
 OPTFLAGS=-thread $(CAMLDEBUGOPT) $(CAMLTIMEPROF) $(USERFLAGS) -package ppx_deriving.std
+MKTOPFLAGS=-thread $(CAMLDEBUGOPT) $(USERFLAGS)
 DEPFLAGS= $(LOCALINCLUDES) -I ide -I ide/utils
 
 # On MacOS, the binaries are signed, except our private ones
@@ -334,7 +335,7 @@ coqbinaries: $(COQMKTOP) $(COQTOPEXE) $(COQTOPBYTE) \
 ifeq ($(BEST),opt)
 $(COQTOPEXE): $(COQMKTOP) $(LINKCMX) $(LIBCOQRUN) $(TOPLOOPCMA:.cma=.cmxs)
 	$(SHOW)'COQMKTOP -o $@'	
-	$(HIDE)$(COQMKTOP) -boot -opt $(OPTFLAGS) $(LINKMETADATA) -o $@
+	$(HIDE)$(COQMKTOP) -echo -boot -opt $(MKTOPFLAGS) $(LINKMETADATA) -o $@
 	$(STRIP) $@
 	$(CODESIGN) $@
 else
@@ -344,7 +345,7 @@ endif
 
 $(COQTOPBYTE): $(COQMKTOP) $(LINKCMO) $(LIBCOQRUN) $(TOPLOOPCMA)
 	$(SHOW)'COQMKTOP -o $@'	
-	$(HIDE)$(COQMKTOP) -boot -top $(BYTEFLAGS) -o $@
+	$(HIDE)$(COQMKTOP) -echo -boot -top $(MKTOPFLAGS) -o $@
 
 # coqmktop
 
@@ -352,7 +353,7 @@ COQMKTOPCMO:=lib/clib.cma lib/cErrors.cmo tools/tolink.cmo tools/coqmktop.cmo
 
 $(COQMKTOP): $(call bestobj, $(COQMKTOPCMO))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml, $(OSDEPLIBS), $(SYSMOD))
+	$(HIDE)$(call bestocaml, $(OSDEPLIBS) -linkpkg, $(SYSMOD))
 
 tools/tolink.ml: Makefile.build Makefile.common
 	$(SHOW)"ECHO... >" $@

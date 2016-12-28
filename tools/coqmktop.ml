@@ -279,7 +279,8 @@ let main () =
     (* - We add topstart.cmo explicitly because we shunted ocamlmktop wrapper.
        - With the coq .cma, we MUST use the -linkall option. *)
     let args =
-      "-linkall" :: "-rectypes" :: "-w" :: "-31" :: flags @ copts @ options @
+      "-linkall" :: "-rectypes" :: "-w" :: "-31" :: "-package" :: "ppx_deriving.std" :: "-linkpkg" ::
+	flags @ copts @ options @
       (std_includes basedir) @ tolink @ [ main_file ] @ topstart
     in
     if !echo then begin

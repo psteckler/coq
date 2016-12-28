@@ -188,11 +188,11 @@ let conv_table_key infos k1 k2 cuniv =
   | RelKey n, RelKey n' when Int.equal n n' -> cuniv
   | _ -> raise NotConvertible
 
-(* threshold of difference in stack conversion strategy which, when exceeded, results in 
-   printing responsible terms 
-*)
-let tm_threshold = 0.10
-     
+(* percentage threshold of difference in stack conversion strategy for reportability *)
+let tm_pct_diff_threshold = 10.0
+(* absolute time threshold for reportability *)
+let tm_absolute_threshold = 0.001
+  
 (* [compare_stacks] compares stacks for equality, starting from the head.
    Application nodes are compared left to right, like in unification. *)
 let compare_stacks_unpatched f fmind lft1 stk1 lft2 stk2 cuniv =
@@ -554,30 +554,35 @@ and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
      (* In all other cases, terms are not convertible *)
      | _ -> raise NotConvertible
 
+and is_reportable tm1 tm2 =
+  min tm1 tm2 >= tm_absolute_threshold &&
+    let tm_pct_diff = 100.0 *. (abs_float ((tm1 -. tm2) /. tm2))
+    in
+    tm_pct_diff >= tm_pct_diff_threshold
+	
 and tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 =
-  let tm_diff = abs_float ((tm_patched -. tm_unpatched) /. tm_unpatched) in
-  if tm_diff >= tm_threshold then (
+  if is_reportable tm_patched tm_unpatched then (
+    let tm_diff = abs_float ((tm_patched -. tm_unpatched) /. tm_unpatched) in
     Printf.printf "*** EXCEEDS THRESHOLD ***\n";
     Printf.printf "TM_UNPATCHED: %0.10f\n" tm_unpatched;
     Printf.printf "TM_PATCHED  : %0.10f\n" tm_patched;
     Printf.printf "TIME DIFFERENCE IS %0.1f%%\n" (tm_diff *. 100.0);
     let pstk1 = pure_stack lft1 stk1 in
     let pstk2 = pure_stack lft2 stk2 in
-    ())
-    (*
-    match (pstk1,pstk2) with
+    (match (pstk1,pstk2) with
     | (z1::_,z2::_) ->
        (Printf.printf "TOP TERMS ON STACK:\n";
-	Printf.printf "  %s\n" (string_of_stack_elt z1);
-       Printf.printf "  %s\n\n" (string_of_stack_elt z2))
+	Printf.printf "  %s\n" (show_lft_constr_stack_elt z1);
+	Printf.printf "*********************************";
+	Printf.printf "  %s\n" (show_lft_constr_stack_elt z2))
     | (z1::_,[]) ->
        (Printf.printf "TOP TERM ON 1ST STACK ONLY\n";
-       Printf.printf "  %s\n\n" (string_of_stack_elt z1))
+	Printf.printf "  TERM 1: %s\n" (show_lft_constr_stack_elt z1))
     | ([],z2::_) ->
        (Printf.printf "TOP TERM ON 2ND STACK ONLY:\n";
-	Printf.printf "  %s\n\n" (string_of_stack_elt z2))
+	Printf.printf "  TERM 2: %s\n" (show_lft_constr_stack_elt z2)));
+    Printf.printf "\n"
   )
-*)
     
 and convert_stacks l2r infos lft1 lft2 stk1 stk2 cuniv =
   (* run patched version just for timing *)
@@ -602,11 +607,11 @@ and convert_stacks l2r infos lft1 lft2 stk1 stk2 cuniv =
 	(eq_ind)
 	lft1 stk1 lft2 stk2 cuniv in
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
-    (*    let _ = tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 in *)
+    let _ = tm_report tm_patched tm_unpatched lft1 stk1 lft2 stk2 in
     result
   with NotConvertible ->
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
-    (*    let _ = tm_report tm_patched tm_unpatched in *)
+    let _ = tm_report tm_patched tm_unpatched in
     raise NotConvertible
     
 and convert_vect l2r infos lft1 lft2 v1 v2 cuniv =
