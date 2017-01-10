@@ -69,7 +69,7 @@ let uget = Array.unsafe_get
 
 (* Arrays *)
 
-let compare cmp v1 v2 =
+(* let compare cmp v1 v2 =
   if v1 == v2 then 0
   else
     let len = Array.length v1 in
@@ -85,7 +85,44 @@ let compare cmp v1 v2 =
           else loop (i - 1)
       in
       loop (len - 1)
+*)
+  
+let compare cmp v1 v2 =
+  if v1 == v2 then 0
+  else 
+    let len1 = Array.length v1 in
+    let len2 = Array.length v2 in
+    let c = Int.compare len1 len2 in 
+    let res = ref 0 in
+    let i = ref (len1 - 1) in
+    let continue = ref true in
+    if c <> 0 then c else ( 
+      while !i >= 0 && !continue do
+	let x = uget v1 !i in
+        let y = uget v2 !i in
+        let c = cmp x y in
+        if c <> 0 then (
+	  res := c;
+	  continue := false
+	);
+	decr i
+      done;
+      !res)
 
+(* let equal_norefl cmp t1 t2 =
+  let len = Array.length t1 in
+  if not (Int.equal len (Array.length t2)) then false
+  else
+    let rec aux i =
+      if i < 0 then true
+      else
+        let x = uget t1 i in
+        let y = uget t2 i in
+        cmp x y && aux (pred i)
+    in
+    aux (len - 1)
+*)
+      
 let equal_norefl cmp t1 t2 =
   let len = Array.length t1 in
   if not (Int.equal len (Array.length t2)) then false
@@ -99,18 +136,33 @@ let equal_norefl cmp t1 t2 =
     in
     aux (len - 1)
 
+
 let equal cmp t1 t2 =
   if t1 == t2 then true else equal_norefl cmp t1 t2
     
 
 let is_empty array = Int.equal (Array.length array) 0
 
-let exists f v =
+(* let exists f v =
   let rec exrec = function
     | -1 -> false
     | n -> f (uget v n) || (exrec (n-1))
   in
   exrec ((Array.length v)-1)
+*)
+
+let exists f v =
+  let res = ref false in
+  let n = ref (Array.length v - 1) in
+  let continue = ref true in
+  while !n >= 0 && !continue do
+    if f (uget v !n) then (
+      res := true;
+      continue := false
+    );
+    decr n
+  done;
+  !res
 
 let exists2 f v1 v2 =
   let rec exrec = function
@@ -212,20 +264,37 @@ let rev t =
         Array.unsafe_set t i tmp
       done
 
-let fold_right_i f v a =
+(* let fold_right_i f v a =
   let rec fold a n =
     if n=0 then a
     else
       let k = n-1 in
       fold (f k (uget v k) a) k in
   fold a (Array.length v)
+*)
+	
+let fold_right_i f v a =
+  let accum = ref a in
+  for k = Array.length v - 1 downto 0 do
+    accum := f k (uget v k) !accum
+  done;
+  !accum
 
-let fold_left_i f v a =
+(* let fold_left_i f v a =
   let n = Array.length a in
   let rec fold i v = if i = n then v else fold (succ i) (f i v (uget a i)) in
   fold 0 v
+*)
 
-let fold_right2 f v1 v2 a =
+let fold_left_i f a v =
+  let n = Array.length v in
+  let accum = ref a in
+  for i = 0 to n - 1 do
+    accum := f i !accum (uget v i)
+  done;
+  !accum
+
+(* let fold_right2 f v1 v2 a =
   let lv1 = Array.length v1 in
   let rec fold a n =
     if n=0 then a
@@ -234,24 +303,55 @@ let fold_right2 f v1 v2 a =
       fold (f (uget v1 k) (uget v2 k) a) k in
   if Array.length v2 <> lv1 then invalid_arg "Array.fold_right2";
   fold a lv1
+*)
+    
+let fold_right2 f v1 v2 a =
+  let lv1 = Array.length v1 in
+  if Array.length v2 <> lv1 then invalid_arg "Array.fold_right2";
+  let accum = ref a in 
+  for k = lv1 - 1 downto 0 do
+    accum := f (uget v1 k) (uget v2 k) !accum
+  done;
+  !accum
 
-let fold_left2 f a v1 v2 =
+(* let fold_left2 f a v1 v2 =
   let lv1 = Array.length v1 in
   let rec fold a n =
     if n >= lv1 then a else fold (f a (uget v1 n) (uget v2 n)) (succ n)
   in
   if Array.length v2 <> lv1 then invalid_arg "Array.fold_left2";
   fold a 0
+*)
 
-let fold_left2_i f a v1 v2 =
+let fold_left2 f a v1 v2 =
+  let lv1 = Array.length v1 in
+  if not (Int.equal (Array.length v2) lv1) then invalid_arg "Array.fold_left2";
+  let accum = ref a in
+  for n = 0 to lv1 - 1 do
+    accum := f !accum (uget v1 n) (uget v2 n)
+  done;
+  !accum
+
+(* let fold_left2_i f a v1 v2 =
   let lv1 = Array.length v1 in
   let rec fold a n =
     if n >= lv1 then a else fold (f n a (uget v1 n) (uget v2 n)) (succ n)
   in
   if Array.length v2 <> lv1 then invalid_arg "Array.fold_left2";
   fold a 0
+*)
 
-let fold_left3 f a v1 v2 v3 =
+let fold_left2_i f a v1 v2 =
+  let lv1 = Array.length v1 in
+  if Array.length v2 <> lv1 then invalid_arg "Array.fold_left2";
+  let accum = ref a in
+  for n = 0 to lv1 - 1 do
+    accum := f n !accum (uget v1 n) (uget v2 n)
+  done;
+  !accum
+
+(* 
+  let fold_left3 f a v1 v2 v3 =
   let lv1 = Array.length v1 in
   let rec fold a n =
     if n >= lv1 then a
@@ -260,14 +360,35 @@ let fold_left3 f a v1 v2 v3 =
   if Array.length v2 <> lv1 || Array.length v3 <> lv1 then
     invalid_arg "Array.fold_left2";
   fold a 0
+*)
+    
+let fold_left3 f a v1 v2 v3 =
+  let lv1 = Array.length v1 in
+  if Array.length v2 <> lv1 || Array.length v3 <> lv1 then
+    invalid_arg "Array.fold_left2";
+  let accum = ref a in
+  for n = 0 to lv1 - 1 do
+    accum := f !accum (uget v1 n) (uget v2 n) (uget v3 n)
+  done;
+  !accum
 
-let fold_left_from n f a v =
+(* let fold_left_from n f a v =
   let len = Array.length v in
   let () = if n < 0 then invalid_arg "Array.fold_left_from" in
   let rec fold a n =
     if n >= len then a else fold (f a (uget v n)) (succ n)
   in
   fold a n
+*)
+    
+let fold_left_from n f a v =
+  let len = Array.length v in
+  let () = if n < 0 then invalid_arg "Array.fold_left_from" in
+  let accum = ref a in
+  for ndx = n to len - 1 do
+    accum := f !accum (uget v n)
+  done;
+  !accum
 
 let rev_of_list = function
 | [] -> [| |]
@@ -470,14 +591,26 @@ let distinct v =
     true
   with Exit -> false
 
-let rev_to_list a =
+(* 
+  let rev_to_list a =
   let rec tolist i res =
     if i >= Array.length a then res else tolist (i+1) (uget a i :: res) in
   tolist 0 []
+*)
+    
+let rev_to_list v =
+  let res = ref [] in
+  for ndx = 0 to Array.length v - 1 do
+    res := uget v ndx :: !res
+  done;
+  !res
 
 let filter_with filter v =
   Array.of_list (CList.filter_with filter (Array.to_list v))
 
+    
+
+    
 module Fun1 =
 struct
 
