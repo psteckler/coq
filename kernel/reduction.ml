@@ -269,19 +269,31 @@ let is_reportable tm1 tm2 =
     let tm_pct_diff = 100.0 *. (abs_float ((tm1 -. tm2) /. tm2))
     in
     tm_pct_diff >= !Flags.kernel_pct_threshold
-	
+
+(* right margin for terms in debug output *)
+let term_margin = 2048
+      
 let tm_report tm_patched exn_patched tm_unpatched exn_unpatched lft1 term1 lft2 term2 =
   if is_reportable tm_patched tm_unpatched then (
+    Format.set_margin term_margin;
+    let check_mark = "✓" in
+    let x_mark = "x" in
+    let (unpatch_mark,patch_mark) =
+      if tm_unpatched > tm_patched then
+	(x_mark,check_mark)
+      else
+	(check_mark,x_mark)
+    in
     let tm_diff = abs_float ((tm_patched -. tm_unpatched) /. tm_unpatched) in
     Printf.printf "*** EXCEEDS THRESHOLD ***\n";
-    Printf.printf "TM_UNPATCHED: %0.10f\n" tm_unpatched;
-    Printf.printf "TM_PATCHED  : %0.10f\n" tm_patched;
+    Printf.printf "%s TM_UNPATCHED (EXN: %b): %0.10f\n" unpatch_mark exn_unpatched tm_unpatched;
+    Printf.printf "%s TM_PATCHED  (EXN: %b): %0.10f\n" patch_mark exn_patched tm_patched;
     Printf.printf "TIME DIFFERENCE IS %0.1f%%\n" (tm_diff *. 100.0);
-    Printf.printf "lft1: %s" (show_lift lft1);
-    Printf.printf "term1: %s" (show_fconstr term1);
+    Format.printf "@[<hov>lft: %a@]@." pp_lift lft1;
+    Format.printf "@[<hov>term1: %a@]@." pp_fconstr term1;
     Printf.printf "*****************************************************************************\n";
-    Printf.printf "lft2: %s" (show_lift lft2);
-    Printf.printf "term2: %s" (show_fconstr term2);
+    Format.printf "@[<hov>lft2: %a@]@." pp_lift lft2;
+    Format.printf "@[<hov>term2: %a@]@." pp_fconstr term2;
     Printf.printf "\n"
   )
 
