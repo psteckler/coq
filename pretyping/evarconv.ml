@@ -322,6 +322,7 @@ let rec evar_conv_x ts env evd pbty term1 term2 =
     if is_ground_term evd term1 && is_ground_term evd term2 then (
       let e =
 	try
+	  (* TODO add bool flag to see that infer_conv called from here *)
 	  let evd, b = infer_conv ~catch_incon:false ~pb:pbty ~ts:(fst ts)
 	    env evd term1 term2 
 	  in

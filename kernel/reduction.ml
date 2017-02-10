@@ -371,6 +371,7 @@ module Unpatched = struct
 		 | Some def1 -> ((lft1, whd def1 v1), appr2)
 		 | None -> raise NotConvertible) 
 	  in
+	  (* TODO add counter here *)
           eqappr cv_pb l2r infos app1 app2 cuniv)
 
     | (FProj (p1,c1), FProj (p2, c2)) ->

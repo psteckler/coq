@@ -389,7 +389,13 @@ module KerName = struct
     mutable refhash : int;
     (** Lazily computed hash. If unset, it is set to negative values. *)
   }
-    [@@deriving show]
+  (* [@@deriving show] *)
+
+
+  let pp fmt t =
+    Label.pp fmt t.knlabel;
+    Format.pp_print_string fmt "; ";
+    ModPath.pp fmt t.modpath
     
   let canary = Canary.obj
 
