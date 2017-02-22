@@ -50,9 +50,9 @@ let section s =
 let lib_dirs =
   ["kernel"; "lib"; "library"; "parsing";
    "pretyping"; "interp"; "printing"; "intf";
-   "proofs"; "tactics"; "tools"; "ltacprof";
-   "toplevel"; "stm"; "grammar"; "config";
-   "ltac"; "engine"]
+   "proofs"; "tactics"; "tools";
+   "vernac"; "stm"; "toplevel"; "grammar"; "config";
+   "engine"]
 
 
 let usage () =
@@ -390,7 +390,7 @@ let clean sds sps =
   let () =
     if !some_vfile then
       let () = print "cleanall:: clean\n" in
-      print "\trm -f $(patsubst %.v,.%.aux,$(VFILES))\n\n" in
+      print "\trm -f $(foreach f,$(VFILES:.v=),$(dir $(f)).$(notdir $(f)).aux)\n\n" in
   print "archclean::\n";
   print "\trm -f *.cmx *.o\n";
   List.iter

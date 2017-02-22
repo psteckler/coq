@@ -110,7 +110,8 @@ let typecheck_params_and_fields def id pl t ps nots fs =
       List.iter 
 	(function LocalRawDef (b, _) -> error default_binder_kind b
 	   | LocalRawAssum (ls, bk, ce) -> List.iter (error bk) ls
-           | LocalPattern _ -> assert false) ps
+           | LocalPattern (loc,_,_) ->
+              Loc.raise ~loc (Stream.Error "pattern with quote not allowed in record parameters.")) ps
   in 
   let impls_env, ((env1,newps), imps) = interp_context_evars env0 evars ps in
   let t', template = match t with 
@@ -552,8 +553,10 @@ let definition_structure (kind,poly,finite,(is_coe,((loc,idstruc),pl)),ps,cfs,id
     | Vernacexpr.DefExpr ((_,Name id),_,_) -> id::acc
     | _ -> acc in
   let allnames =  idstruc::(List.fold_left extract_name [] fs) in
-  if not (List.distinct_f Id.compare allnames)
-  then error "Two objects have the same name";
+  let () = match List.duplicates Id.equal allnames with
+  | [] -> ()
+  | id :: _ -> user_err (str "Two objects have the same name" ++ spc () ++ quote (Id.print id))
+  in
   let isnot_class = match kind with Class false -> false | _ -> true in
   if isnot_class && List.exists (fun opt -> not (Option.is_empty opt)) priorities then
     error "Priorities only allowed for type class substructures";

@@ -105,7 +105,7 @@ let verbose_phrase verbch loc =
   match verbch with
     | Some ch ->
 	let len = snd loc - fst loc in
-	let s = String.create len in
+	let s = Bytes.create len in
         seek_in ch (fst loc);
         really_input ch s 0 len;
         Feedback.msg_notice (str s)
@@ -162,7 +162,7 @@ let pr_new_syntax po loc chan_beautify ocom =
 let pp_cmd_header loc com =
   let shorten s = try (String.sub s 0 30)^"..." with _ -> s in
   let noblank s =
-    for i = 0 to String.length s - 1 do
+    for i = 0 to Bytes.length s - 1 do
       match s.[i] with
 	| ' ' | '\n' | '\t' | '\r' -> s.[i] <- '~'
 	| _ -> ()
@@ -343,7 +343,7 @@ let compile verbosely f =
       let univs, proofs = Stm.finish_tasks lfdv univs disch proofs tasks in
       Library.save_library_raw lfdv sum lib univs proofs
 
-let compile v f = 
+let compile v f =
   ignore(CoqworkmgrApi.get 1);
   compile v f;
   CoqworkmgrApi.giveback 1
