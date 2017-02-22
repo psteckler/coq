@@ -304,6 +304,13 @@ module Unpatched = struct
   let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
     eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
 
+  and eqappr_counter = ref 0
+  and eqappr_printer () =
+    Printf.printf
+      "IN UNPATCHED, EQAPPR CALLED FROM EXN HANDLER IN FFLEX...,FFLEX... CASE: %6d TIMES\n"
+      !eqappr_counter;
+    flush stdout
+      
 (* Conversion between [lft1](hd1 v1) and [lft2](hd2 v2) *)
   and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
     Control.check_for_interrupt ();
@@ -371,7 +378,7 @@ module Unpatched = struct
 		 | Some def1 -> ((lft1, whd def1 v1), appr2)
 		 | None -> raise NotConvertible) 
 	  in
-	  (* TODO add counter here *)
+	  incr eqappr_counter;
           eqappr cv_pb l2r infos app1 app2 cuniv)
 
     | (FProj (p1,c1), FProj (p2, c2)) ->
@@ -573,6 +580,8 @@ module Unpatched = struct
       fold 0 cuniv
     else raise NotConvertible
 
+  let _ = at_exit eqappr_printer
+
 end (* Unpatched *)
 
 module Patched = struct
@@ -610,6 +619,13 @@ module Patched = struct
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
   let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
     eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv 
+
+  and eqappr_counter = ref 0
+  and eqappr_printer () =
+    Printf.printf
+      "IN PATCHED,   EQAPPR CALLED FROM EXN HANDLER IN FFLEX...,FFLEX... CASE: %6d TIMES\n"
+      !eqappr_counter;
+    flush stdout
 
 (* Conversion between [lft1](hd1 v1) and [lft2](hd2 v2) *)
   and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
@@ -678,6 +694,7 @@ module Patched = struct
 		 | Some def1 -> ((lft1, whd def1 v1), appr2)
 		 | None -> raise NotConvertible) 
 	  in
+	  incr eqappr_counter;
           eqappr cv_pb l2r infos app1 app2 cuniv)
 
     | (FProj (p1,c1), FProj (p2, c2)) ->
@@ -880,6 +897,8 @@ module Patched = struct
           fold (n+1) cuniv in
       fold 0 cuniv
     else raise NotConvertible
+
+  let dummy = at_exit eqappr_printer
 
 end (* Patched *)
 

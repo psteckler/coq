@@ -261,7 +261,7 @@ val check_conv : ?pb:conv_pb -> ?ts:transparent_state -> env ->  evar_map -> con
     @raises UniverseInconsistency iff catch_incon is set to false, 
     otherwise returns false in that case.
  *)
-val infer_conv : ?catch_incon:bool -> ?pb:conv_pb -> ?ts:transparent_state -> 
+val infer_conv : evar_conv_x_flag:bool -> ?catch_incon:bool -> ?pb:conv_pb -> ?ts:transparent_state -> 
   env -> evar_map -> constr -> constr -> evar_map * bool
 
 (** Conversion with inference of universe constraints *)

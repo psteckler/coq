@@ -211,7 +211,7 @@ let convert_concl ?(check=true) ty k =
         if check then begin
           let sigma = Sigma.to_evar_map sigma in
           ignore (Typing.unsafe_type_of env sigma ty);
-          let sigma,b = Reductionops.infer_conv env sigma ty conclty in
+          let sigma,b = Reductionops.infer_conv ~evar_conv_x_flag:false env sigma ty conclty in
           if not b then error "Not convertible.";
           Sigma.Unsafe.of_pair ((), sigma)
         end else Sigma.here () sigma in
@@ -240,7 +240,7 @@ let convert_hyp_no_check = convert_hyp ~check:false
 let convert_gen pb x y =
   Proofview.Goal.enter { enter = begin fun gl ->
     try
-      let sigma, b = Tacmach.New.pf_apply (Reductionops.infer_conv ~pb) gl x y in
+      let sigma, b = Tacmach.New.pf_apply (Reductionops.infer_conv ~evar_conv_x_flag:false ~pb) gl x y in
       if b then Proofview.Unsafe.tclEVARS sigma
       else Tacticals.New.tclFAIL 0 (str "Not convertible")
     with (* Reduction.NotConvertible *) _ ->
@@ -788,7 +788,7 @@ let check_types env sigma mayneedglobalcheck deep newc origc =
     let t2 = Retyping.get_type_of env sigma origc in
     let sigma, t2 = Evarsolve.refresh_universes
 		      ~onlyalg:true (Some false) env sigma t2 in
-    let sigma, b = infer_conv ~pb:Reduction.CUMUL env sigma t1 t2 in
+    let sigma, b = infer_conv ~evar_conv_x_flag:false ~pb:Reduction.CUMUL env sigma t1 t2 in
     if not b then
       if
         isSort (whd_all env sigma t1) &&
@@ -808,7 +808,7 @@ let change_and_check cv_pb mayneedglobalcheck deep t = { e_redfun = begin fun en
   let Sigma (t', sigma, p) = t.run sigma in
   let sigma = Sigma.to_evar_map sigma in
   let sigma = check_types env sigma mayneedglobalcheck deep t' c in
-  let sigma, b = infer_conv ~pb:cv_pb env sigma t' c in
+  let sigma, b = infer_conv ~evar_conv_x_flag:false ~pb:cv_pb env sigma t' c in
   if not b then user_err ~hdr:"convert-check-hyp" (str "Not convertible.");
   Sigma.Unsafe.of_pair (t', sigma)
 end }
@@ -1977,7 +1977,7 @@ let assumption =
       if only_eq then (sigma, Constr.equal t concl)
       else
         let env = Proofview.Goal.env gl in
-        infer_conv env sigma t concl
+        infer_conv ~evar_conv_x_flag:false env sigma t concl
     in
     if is_same_type then
       (Proofview.Unsafe.tclEVARS sigma) <*>
