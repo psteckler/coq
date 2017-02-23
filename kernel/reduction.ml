@@ -244,33 +244,6 @@ let is_reportable tm1 tm2 =
     in
     tm_pct_diff >= !Flags.kernel_pct_threshold
 
-(* right margin for terms in debug output *)
-let term_margin = 2048
-      
-let tm_report tm_patched exn_patched tm_unpatched exn_unpatched lft1 term1 lft2 term2 =
-  if is_reportable tm_patched tm_unpatched then (
-    Format.set_margin term_margin;
-    let check_mark = "✓" in
-    let x_mark = "x" in
-    let (unpatch_mark,patch_mark) =
-      if tm_unpatched > tm_patched then
-	(x_mark,check_mark)
-      else
-	(check_mark,x_mark)
-    in
-    let tm_diff = abs_float ((tm_patched -. tm_unpatched) /. tm_unpatched) in
-    Printf.printf "*** EXCEEDS THRESHOLD ***\n";
-    Printf.printf "%s TM_UNPATCHED (EXN: %b): %0.10f\n" unpatch_mark exn_unpatched tm_unpatched;
-    Printf.printf "%s TM_PATCHED  (EXN: %b): %0.10f\n" patch_mark exn_patched tm_patched;
-    Printf.printf "TIME DIFFERENCE IS %0.1f%%\n" (tm_diff *. 100.0);
-    Format.printf "@[<hov>lft: %a@]@." pp_lift lft1;
-    Format.printf "@[<hov>term1: %a@]@." pp_fconstr term1;
-    Printf.printf "*****************************************************************************\n";
-    Format.printf "@[<hov>lft2: %a@]@." pp_lift lft2;
-    Format.printf "@[<hov>term2: %a@]@." pp_fconstr term2;
-    Printf.printf "\n"
-  )
-
 module Unpatched = struct
 
   let compare_stacks f fmind lft1 stk1 lft2 stk2 cuniv =
@@ -307,7 +280,7 @@ module Unpatched = struct
   and eqappr_counter = ref 0
   and eqappr_printer () =
     Printf.printf
-      "IN UNPATCHED, EQAPPR CALLED FROM EXN HANDLER IN FFLEX...,FFLEX... CASE: %6d TIMES\n"
+      "IN UNPATCHED, EQAPPR CALLED FROM EXN HANDLER IN FFLEX...,FFLEX... CASE: %8d TIMES\n"
       !eqappr_counter;
     flush stdout
       
@@ -580,8 +553,6 @@ module Unpatched = struct
       fold 0 cuniv
     else raise NotConvertible
 
-  let _ = at_exit eqappr_printer
-
 end (* Unpatched *)
 
 module Patched = struct
@@ -623,7 +594,7 @@ module Patched = struct
   and eqappr_counter = ref 0
   and eqappr_printer () =
     Printf.printf
-      "IN PATCHED,   EQAPPR CALLED FROM EXN HANDLER IN FFLEX...,FFLEX... CASE: %6d TIMES\n"
+      "IN PATCHED,   EQAPPR CALLED FROM EXN HANDLER IN FFLEX...,FFLEX... CASE: %8d TIMES\n"
       !eqappr_counter;
     flush stdout
 
@@ -898,11 +869,39 @@ module Patched = struct
       fold 0 cuniv
     else raise NotConvertible
 
-  let dummy = at_exit eqappr_printer
-
 end (* Patched *)
 
-let ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
+(* right margin for terms in debug output *)
+let term_margin = 2048
+      
+let tm_report evar_conv_x_flag tm_patched exn_patched tm_unpatched exn_unpatched lft1 term1 lft2 term2 =
+  if is_reportable tm_patched tm_unpatched then (
+    Format.set_margin term_margin;
+    let check_mark = "✓" in
+    let x_mark = "x" in
+    let (unpatch_mark,patch_mark) =
+      if tm_unpatched > tm_patched then
+	(x_mark,check_mark)
+      else
+	(check_mark,x_mark)
+    in
+    let tm_diff = abs_float ((tm_patched -. tm_unpatched) /. tm_unpatched) in
+    Printf.printf "*** EXCEEDS THRESHOLD ***\n";
+    Printf.printf "%s TM_UNPATCHED (EXN: %b): %0.10f\n" unpatch_mark exn_unpatched tm_unpatched;
+    Printf.printf "%s TM_PATCHED  (EXN: %b): %0.10f\n" patch_mark exn_patched tm_patched;
+    Printf.printf "TIME DIFFERENCE IS %0.1f%%\n" (tm_diff *. 100.0);
+    Printf.printf "CALLED FROM EVAR_CONV_X: %b\n" evar_conv_x_flag;
+    Unpatched.eqappr_printer ();
+    Patched.eqappr_printer ();
+    Format.printf "@[<hov>lft: %a@]@." pp_lift lft1;
+    Format.printf "@[<hov>term1: %a@]@." pp_fconstr term1;
+    Printf.printf "*****************************************************************************\n";
+    Format.printf "@[<hov>lft2: %a@]@." pp_lift lft2;
+    Format.printf "@[<hov>term2: %a@]@." pp_fconstr term2;
+    Printf.printf "\n"
+  )
+
+let ccnv evar_conv_x_flag cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
   let exn_patched = ref false in
   let tm0 = Unix.gettimeofday () in
   if !Flags.report_kernel_reductions then (
@@ -919,7 +918,7 @@ let ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
     let _ =
       if !Flags.report_kernel_reductions then 
-	tm_report tm_patched !exn_patched tm_unpatched false lft1 term1 lft2 term2
+	tm_report evar_conv_x_flag tm_patched !exn_patched tm_unpatched false lft1 term1 lft2 term2
       else ()
     in
     result
@@ -927,15 +926,15 @@ let ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
     let _ =
       if !Flags.report_kernel_reductions then 
-	tm_report tm_patched !exn_patched tm_unpatched true lft1 term1 lft2 term2
+	tm_report evar_conv_x_flag tm_patched !exn_patched tm_unpatched true lft1 term1 lft2 term2
       else ()
     in
     raise NotConvertible
 
-let clos_gen_conv trans cv_pb l2r evars env univs t1 t2 =
+let clos_gen_conv evar_conv_x_flag trans cv_pb l2r evars env univs t1 t2 =
   let reds = CClosure.RedFlags.red_add_transparent betaiotazeta trans in
   let infos = create_clos_infos ~evars reds env in
-  ccnv cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs
+  ccnv evar_conv_x_flag cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs
 
 let check_eq univs u u' = 
   if not (UGraph.check_eq univs u u') then raise NotConvertible
@@ -1021,7 +1020,7 @@ let gen_conv cv_pb l2r reds env evars univs t1 t2 =
   in
     if b then ()
     else 
-      let _ = clos_gen_conv reds cv_pb l2r evars env (univs, checked_universes) t1 t2 in
+      let _ = clos_gen_conv false reds cv_pb l2r evars env (univs, checked_universes) t1 t2 in
 	()
 
 (* Profiling *)
@@ -1036,9 +1035,9 @@ let conv = gen_conv CONV
 
 let conv_leq = gen_conv CUMUL
 
-let generic_conv cv_pb ~l2r evars reds env univs t1 t2 =
+let generic_conv evar_conv_x_flag cv_pb ~l2r evars reds env univs t1 t2 =
   let (s, _) = 
-    clos_gen_conv reds cv_pb l2r evars env univs t1 t2 
+    clos_gen_conv evar_conv_x_flag reds cv_pb l2r evars env univs t1 t2 
   in s
 
 let infer_conv_universes cv_pb l2r evars reds env univs t1 t2 =
@@ -1049,7 +1048,7 @@ let infer_conv_universes cv_pb l2r evars reds env univs t1 t2 =
     if b then cstrs
     else
       let univs = ((univs, Univ.Constraint.empty), inferred_universes) in
-      let ((_,cstrs), _) = clos_gen_conv reds cv_pb l2r evars env univs t1 t2 in
+      let ((_,cstrs), _) = clos_gen_conv false reds cv_pb l2r evars env univs t1 t2 in
 	cstrs
 
 (* Profiling *)

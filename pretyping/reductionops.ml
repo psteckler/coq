@@ -1306,8 +1306,9 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Reduction.CUMUL)
   | Univ.UniverseInconsistency _ when catch_incon -> sigma, false
   | e when is_anomaly e -> report_anomaly e
 
-let infer_conv ~evar_conv_x_flag = infer_conv_gen (fun pb ~l2r sigma ->
-      Reduction.generic_conv pb ~l2r (safe_evar_value sigma))
+let infer_conv ~evar_conv_x_flag =
+  infer_conv_gen (fun pb ~l2r sigma ->
+    Reduction.generic_conv evar_conv_x_flag pb ~l2r (safe_evar_value sigma))
 
 (* This reference avoids always having to link C code with the kernel *)
 let vm_infer_conv = ref (infer_conv ~evar_conv_x_flag:false ~catch_incon:true ~ts:full_transparent_state)
