@@ -275,6 +275,7 @@ module Unpatched = struct
 
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
   let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
+    let _ = eqappr_counter := 0 in
     eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
 
   and eqappr_counter = ref 0
@@ -589,6 +590,7 @@ module Patched = struct
       
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
   let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
+    let _ = eqappr_counter := 0 in
     eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv 
 
   and eqappr_counter = ref 0
