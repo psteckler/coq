@@ -275,7 +275,6 @@ module Unpatched = struct
 
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
   let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
-    let _ = eqappr_counter := 0 in
     eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
 
   and eqappr_counter = ref 0
@@ -590,7 +589,6 @@ module Patched = struct
       
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
   let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
-    let _ = eqappr_counter := 0 in
     eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv 
 
   and eqappr_counter = ref 0
@@ -904,6 +902,7 @@ let tm_report evar_conv_x_flag tm_patched exn_patched tm_unpatched exn_unpatched
   )
 
 let ccnv evar_conv_x_flag cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
+  let _ = Patched.eqappr_counter := 0 in
   let exn_patched = ref false in
   let tm0 = Unix.gettimeofday () in
   if !Flags.report_kernel_reductions then (
@@ -913,6 +912,8 @@ let ccnv evar_conv_x_flag cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
     with NotConvertible ->
       exn_patched := true
   );
+
+  let _ = Unpatched.eqappr_counter := 0 in
   let tm_patched = Unix.gettimeofday () -. tm0 in
   let tm1 = Unix.gettimeofday () in
   try 
