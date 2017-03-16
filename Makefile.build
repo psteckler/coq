@@ -106,12 +106,11 @@ BOOTCOQC=$(TIMER) $(COQTOPEXE) -boot $(COQOPTS) -compile
 LOCALINCLUDES=$(addprefix -I , $(SRCDIRS) )
 MLINCLUDES=$(LOCALINCLUDES) -I $(MYCAMLP4LIB)
 
-OCAMLC := $(OCAMLFIND) ocamlc $(CAMLFLAGS)
-OCAMLOPT := $(OCAMLFIND) opt $(CAMLFLAGS)
+OCAMLC := $(OCAMLFIND) ocamlc -package ppx_deriving.std $(CAMLFLAGS)
+OCAMLOPT := $(OCAMLFIND) opt -package ppx_deriving.std $(CAMLFLAGS)
 
-BYTEFLAGS=-thread $(CAMLDEBUG) $(USERFLAGS) -package ppx_deriving.std
-OPTFLAGS=-thread $(CAMLDEBUGOPT) $(CAMLTIMEPROF) $(USERFLAGS) -package ppx_deriving.std
-MKTOPFLAGS=-thread $(CAMLDEBUGOPT) $(USERFLAGS)
+BYTEFLAGS=-thread $(CAMLDEBUG) $(USERFLAGS)
+OPTFLAGS=-thread $(CAMLDEBUGOPT) $(CAMLTIMEPROF) $(USERFLAGS)
 DEPFLAGS= $(LOCALINCLUDES) -I ide -I ide/utils
 
 # On MacOS, the binaries are signed, except our private ones
@@ -158,7 +157,7 @@ endif
 
 PR_O := $(if $(READABLE_ML4),pr_o.cmo,pr_dump.cmo)
 
-SYSMOD:=str unix dynlink threads
+SYSMOD:=str dynlink threads
 SYSCMA:=$(addsuffix .cma,$(SYSMOD))
 SYSCMXA:=$(addsuffix .cmxa,$(SYSMOD))
 
@@ -335,7 +334,7 @@ coqbinaries: $(COQMKTOP) $(COQTOPEXE) $(COQTOPBYTE) \
 ifeq ($(BEST),opt)
 $(COQTOPEXE): $(COQMKTOP) $(LINKCMX) $(LIBCOQRUN) $(TOPLOOPCMA:.cma=.cmxs)
 	$(SHOW)'COQMKTOP -o $@'	
-	$(HIDE)$(COQMKTOP) -echo -boot -opt $(MKTOPFLAGS) $(LINKMETADATA) -o $@
+	$(HIDE)$(COQMKTOP) -echo -boot -opt $(OPTFLAGS) $(LINKMETADATA) -o $@
 	$(STRIP) $@
 	$(CODESIGN) $@
 else
@@ -345,7 +344,7 @@ endif
 
 $(COQTOPBYTE): $(COQMKTOP) $(LINKCMO) $(LIBCOQRUN) $(TOPLOOPCMA)
 	$(SHOW)'COQMKTOP -o $@'	
-	$(HIDE)$(COQMKTOP) -echo -boot -top $(MKTOPFLAGS) -o $@
+	$(HIDE)$(COQMKTOP) -echo -boot -top $(BYTEFLAGS) -o $@
 
 # coqmktop
 
@@ -353,7 +352,7 @@ COQMKTOPCMO:=lib/clib.cma lib/cErrors.cmo tools/tolink.cmo tools/coqmktop.cmo
 
 $(COQMKTOP): $(call bestobj, $(COQMKTOPCMO))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml, $(OSDEPLIBS) -linkpkg, $(SYSMOD))
+	$(HIDE)$(call bestocaml, -linkpkg $(OSDEPLIBS), $(SYSMOD))
 
 tools/tolink.ml: Makefile.build Makefile.common
 	$(SHOW)"ECHO... >" $@
@@ -367,7 +366,7 @@ COQCCMO:=lib/clib.cma lib/cErrors.cmo toplevel/usage.cmo tools/coqc.cmo
 
 $(COQC): $(call bestobj, $(COQCCMO))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml, $(OSDEPLIBS), $(SYSMOD))
+	$(HIDE)$(call bestocaml, -linkpkg $(OSDEPLIBS), $(SYSMOD))
 
 ###########################################################################
 # other tools
@@ -407,7 +406,7 @@ COQDEPCMO:=lib/clib.cma lib/cErrors.cmo lib/cWarnings.cmo lib/minisys.cmo \
 
 $(COQDEP): $(call bestobj, $(COQDEPCMO))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml, $(OSDEPLIBS), $(SYSMOD))
+	$(HIDE)$(call bestocaml, -linkpkg $(OSDEPLIBS), $(SYSMOD))
 
 $(GALLINA): $(call bestobj, tools/gallina_lexer.cmo tools/gallina.cmo)
 	$(SHOW)'OCAMLBEST -o $@'
@@ -417,7 +416,7 @@ COQMAKEFILECMO:=lib/clib.cma ide/project_file.cmo tools/coq_makefile.cmo
 
 $(COQMAKEFILE): $(call bestobj,$(COQMAKEFILECMO))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml,,str unix threads)
+	$(HIDE)$(call bestocaml,-linkpkg,str threads)
 
 $(COQTEX): $(call bestobj, tools/coq_tex.cmo)
 	$(SHOW)'OCAMLBEST -o $@'
@@ -432,11 +431,11 @@ COQDOCCMO:=lib/clib.cma $(addprefix tools/coqdoc/, \
 
 $(COQDOC): $(call bestobj, $(COQDOCCMO))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml,,str unix)
+	$(HIDE)$(call bestocaml,-linkpkg,str)
 
 $(COQWORKMGR): $(call bestobj, lib/clib.cma stm/coqworkmgrApi.cmo tools/coqworkmgr.cmo)
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml,, $(SYSMOD))
+	$(HIDE)$(call bestocaml,-linkpkg, $(SYSMOD))
 
 # fake_ide : for debugging or test-suite purpose, a fake ide simulating
 # a connection to coqtop -ideslave
@@ -447,7 +446,7 @@ FAKEIDECMO:= lib/clib.cma lib/cErrors.cmo lib/spawn.cmo ide/document.cmo \
 
 $(FAKEIDE): $(call bestobj, $(FAKEIDECMO)) | $(IDETOPLOOPCMA:.cma=$(BESTDYN))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml,-I ide,str unix threads)
+	$(HIDE)$(call bestocaml,-linkpkg -I ide,str threads)
 
 # votour: a small vo explorer (based on the checker)
 
@@ -465,7 +464,7 @@ CSDPCERTCMO:=lib/clib.cma $(addprefix plugins/micromega/, \
 
 $(CSDPCERT): $(call bestobj, $(CSDPCERTCMO))
 	$(SHOW)'OCAMLBEST -o $@'
-	$(HIDE)$(call bestocaml,,nums unix)
+	$(HIDE)$(call bestocaml,-linkpkg,nums)
 
 ###########################################################################
 # tests

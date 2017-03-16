@@ -81,7 +81,7 @@ endif
 ifeq ($(HASCOQIDE),opt)
 $(COQIDE): $(LINKIDEOPT)
 	$(SHOW)'OCAMLOPT -o $@'
-	$(HIDE)$(OCAMLOPT) $(COQIDEFLAGS) $(OPTFLAGS) -o $@ unix.cmxa threads.cmxa lablgtk.cmxa \
+	$(HIDE)$(OCAMLOPT) -linkpkg $(COQIDEFLAGS) $(OPTFLAGS) -o $@ threads.cmxa lablgtk.cmxa \
 		lablgtksourceview2.cmxa str.cmxa $(IDEFLAGS:.cma=.cmxa) $^
 	$(STRIP) $@
 else
@@ -91,7 +91,7 @@ endif
 
 $(COQIDEBYTE): $(LINKIDE)
 	$(SHOW)'OCAMLC -o $@'
-	$(HIDE)$(OCAMLC) $(COQIDEFLAGS) $(BYTEFLAGS) -o $@ unix.cma threads.cma lablgtk.cma \
+	$(HIDE)$(OCAMLC) -linkpkg $(COQIDEFLAGS) $(BYTEFLAGS) -o $@ threads.cma lablgtk.cma \
 	        lablgtksourceview2.cma str.cma $(IDEFLAGS) $(IDECDEPSFLAGS) $^
 
 ide/coqide_main.ml: ide/coqide_main.ml4 config/Makefile # no camlp4deps here
