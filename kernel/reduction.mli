@@ -116,3 +116,5 @@ val dest_arity : env -> types -> arity (* raises NotArity if not an arity *)
 val is_arity   : env -> types -> bool
 
 val warn_bytecode_compiler_failed : ?loc:Loc.t -> unit -> unit
+
+val term_printer_hook : (env -> constr -> Pp.std_ppcmds) ref

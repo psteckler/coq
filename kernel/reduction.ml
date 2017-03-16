@@ -244,6 +244,9 @@ let is_reportable tm1 tm2 =
     in
     tm_pct_diff >= !Flags.kernel_pct_threshold
 
+let term_printer_hook = ref (fun _ _ -> Pp.mt ())
+let print_term env t = !term_printer_hook env t
+
 module Unpatched = struct
 
   let compare_stacks f fmind lft1 stk1 lft2 stk2 cuniv =
@@ -874,7 +877,7 @@ end (* Patched *)
 (* right margin for terms in debug output *)
 let term_margin = 2048
       
-let tm_report evar_conv_x_flag tm_patched exn_patched tm_unpatched exn_unpatched lft1 term1 lft2 term2 =
+let tm_report evar_conv_x_flag tm_patched exn_patched tm_unpatched exn_unpatched env c1 c2 lft1 term1 lft2 term2 =
   if is_reportable tm_patched tm_unpatched then (
     Format.set_margin term_margin;
     let check_mark = "✓" in
@@ -893,15 +896,21 @@ let tm_report evar_conv_x_flag tm_patched exn_patched tm_unpatched exn_unpatched
     Printf.printf "CALLED FROM EVAR_CONV_X: %b\n" evar_conv_x_flag;
     Unpatched.eqappr_printer ();
     Patched.eqappr_printer ();
+    (*
     Format.printf "@[<hov>lft: %a@]@." pp_lift lft1;
     Format.printf "@[<hov>term1: %a@]@." pp_fconstr term1;
+     *)
+    Format.printf "@[<hov>term1: %s@]@." (Pp.string_of_ppcmds (print_term env c1));
     Printf.printf "*****************************************************************************\n";
+    Format.printf "@[<hov>term2: %s@]@." (Pp.string_of_ppcmds (print_term env c2));
+    (*
     Format.printf "@[<hov>lft2: %a@]@." pp_lift lft2;
     Format.printf "@[<hov>term2: %a@]@." pp_fconstr term2;
+     *)
     Printf.printf "\n"
   )
 
-let ccnv evar_conv_x_flag cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
+let ccnv evar_conv_x_flag cv_pb l2r infos env c1 c2 lft1 lft2 term1 term2 cuniv =
   let _ = Patched.eqappr_counter := 0 in
   let exn_patched = ref false in
   let tm0 = Unix.gettimeofday () in
@@ -921,7 +930,7 @@ let ccnv evar_conv_x_flag cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
     let _ =
       if !Flags.report_kernel_reductions then 
-	tm_report evar_conv_x_flag tm_patched !exn_patched tm_unpatched false lft1 term1 lft2 term2
+	tm_report evar_conv_x_flag tm_patched !exn_patched tm_unpatched false env c1 c2 lft1 term1 lft2 term2
       else ()
     in
     result
@@ -929,7 +938,7 @@ let ccnv evar_conv_x_flag cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
     let tm_unpatched = Unix.gettimeofday () -. tm1 in
     let _ =
       if !Flags.report_kernel_reductions then 
-	tm_report evar_conv_x_flag tm_patched !exn_patched tm_unpatched true lft1 term1 lft2 term2
+	tm_report evar_conv_x_flag tm_patched !exn_patched tm_unpatched true env c1 c2 lft1 term1 lft2 term2
       else ()
     in
     raise NotConvertible
@@ -937,7 +946,7 @@ let ccnv evar_conv_x_flag cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
 let clos_gen_conv evar_conv_x_flag trans cv_pb l2r evars env univs t1 t2 =
   let reds = CClosure.RedFlags.red_add_transparent betaiotazeta trans in
   let infos = create_clos_infos ~evars reds env in
-  ccnv evar_conv_x_flag cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs
+  ccnv evar_conv_x_flag cv_pb l2r infos env t1 t2 el_id el_id (inject t1) (inject t2) univs
 
 let check_eq univs u u' = 
   if not (UGraph.check_eq univs u u') then raise NotConvertible
