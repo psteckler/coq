@@ -239,7 +239,7 @@ let unfold_projection infos p c =
   else None
 
 let is_reportable tm1 tm2 =
-  min tm1 tm2 >= !Flags.kernel_abs_threshold &&
+  max tm1 tm2 >= !Flags.kernel_abs_threshold &&
     let tm_pct_diff = 100.0 *. (abs_float ((tm1 -. tm2) /. tm2))
     in
     tm_pct_diff >= !Flags.kernel_pct_threshold
