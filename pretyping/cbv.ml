@@ -321,11 +321,16 @@ and cbv_stack_value info env = function
     | (head,stk) -> mkSTACK(head, stk)
 
 
+let term_printer_hook = ref (fun _ _ -> Pp.mt ())
+let print_term env t = !term_printer_hook env t
+       
 (* When we are sure t will never produce a redex with its stack, we
  * normalize (even under binders) the applied terms and we build the
  * final term
  *)
-let rec apply_stack info t = function
+let rec apply_stack info t exp =
+  Format.printf "@[<hov>apply_stack, t: %s@]@." (Pp.string_of_ppcmds (print_term (Global.env()) t));
+  match exp with
   | TOP -> t
   | APP (args,st) ->
       apply_stack info (mkApp(t,Array.map (cbv_norm_value info) args)) st
@@ -343,8 +348,10 @@ and cbv_norm_term info env t =
   cbv_norm_value info (cbv_stack_term info TOP env t)
 
 (* reduction of a cbv_value to a constr *)
-and cbv_norm_value info = function (* reduction under binders *)
-  | VAL (n,t) -> lift n t
+and cbv_norm_value info exp = (* reduction under binders *)
+  match exp with
+  | VAL (n,t) ->
+     lift n t
   | STACK (0,v,stk) ->
       apply_stack info (cbv_norm_value info v) stk
   | STACK (n,v,stk) ->
