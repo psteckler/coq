@@ -329,7 +329,7 @@ let print_term env t = !term_printer_hook env t
  * final term
  *)
 let rec apply_stack info t exp =
-  Format.printf "@[<hov>apply_stack, t: %s@]@." (Pp.string_of_ppcmds (print_term (Global.env()) t));
+  Printf.eprintf "apply_stack, t: %s\n" (Pp.string_of_ppcmds (Termops.pr_constr t)); flush stderr;
   match exp with
   | TOP -> t
   | APP (args,st) ->

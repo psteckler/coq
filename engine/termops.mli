@@ -19,7 +19,8 @@ open EConstr
 val print_sort : sorts -> std_ppcmds
 val pr_sort_family : sorts_family -> std_ppcmds
 val pr_fix : ('a -> std_ppcmds) -> ('a, 'a) pfixpoint -> std_ppcmds
-
+val pr_constr : Constr.t -> Pp.t
+  
 (** about contexts *)
 val push_rel_assum : Name.t * types -> env -> env
 val push_rels_assum : (Name.t * Constr.types) list -> env -> env
