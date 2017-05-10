@@ -31,9 +31,10 @@ let max_recursion = 99
 (* end globals *)
 
 (* TEMP tables *)
-let check_compat_tbl : (float,Environ.env * Term.constr * Term.constr) Hashtbl.t = Hashtbl.create 5000
+(* let check_compat_tbl : (float,Environ.env * Term.constr * Term.constr) Hashtbl.t = Hashtbl.create 5000
 let w_unify_tbl : (float,Environ.env * Term.constr * Term.constr) Hashtbl.t = Hashtbl.create 5000
-
+*)
+  
 let flush_events () = the_events := []
 
 (* depth of all calls to instrumented procedures *)
