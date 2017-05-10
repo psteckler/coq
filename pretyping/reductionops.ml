@@ -1057,11 +1057,11 @@ let rec whd_state_gen_ORIG ?csts ~refold ~tactic_mode flags env sigma =
   fun xs ->
   let (s,cst_l as res) = whrec (Option.default Cst_stack.empty csts) xs in
   if tactic_mode then (Stack.best_state s cst_l,Cst_stack.empty) else res
-and whd_state_gen ?csts tactic_mode flags env sigma =
+and whd_state_gen ?csts ~refold ~tactic_mode flags env sigma =
   let name = "whd_state_gen" in
   let _ = Timer.start_timer name in
   try
-    let result = whd_state_gen_ORIG ?csts tactic_mode flags env sigma in
+    let result = whd_state_gen_ORIG ?csts ~refold ~tactic_mode flags env sigma in
     let _ = Timer.stop_timer name in
     result
   with exn ->

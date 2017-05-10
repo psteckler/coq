@@ -787,11 +787,11 @@ let rec check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM 
 	if b then sigma
 	else error_cannot_unify env sigma (m,n)
     else sigma
-and check_compatibility env flags (sigma,metasubst,evarsubst) tyM tyN =
+and check_compatibility env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
   let name = "check_compatibility" in 
   let _ = Timer.start_timer name in
   try
-    let result = check_compatibility_ORIG env flags (sigma,metasubst,evarsubst) tyM tyN in
+    let result = check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM tyN in
     let _ = Timer.stop_timer name in
     result
   with exn ->
@@ -1534,7 +1534,7 @@ and merge_instances env sigma flags st1 st2 c1 c2 =
  * close it off.  But this might not always work,
  * since other metavars might also need to be resolved. *)
 
-let rec applyHead env (type r) (evd : r Sigma.t) n c =
+let rec applyHead_ORIG env (type r) (evd : r Sigma.t) n c =
   let rec apprec : type s. _ -> _ -> _ -> (r, s) Sigma.le -> s Sigma.t -> (constr, r) Sigma.sigma =
     fun n c cty p evd ->
     if Int.equal n 0 then

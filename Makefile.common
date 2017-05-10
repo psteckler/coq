@@ -55,7 +55,8 @@ MKDIR:=install -d
 CORESRCDIRS:=\
   config 	lib		kernel		kernel/byterun	library \
   proofs 	tactics 	pretyping	interp		stm \
-  toplevel	parsing 	printing	intf	engine	ltac
+  toplevel	parsing 	printing	intf	engine	ltac \
+  timing
 
 PLUGINDIRS:=\
   omega		romega 		micromega 	quote \

@@ -1700,11 +1700,11 @@ and cl_rewrite_clause_strat progress strat clause =
 let rec cl_rewrite_clause_ORIG l left2right occs clause =
   let strat = rewrite_with left2right (general_rewrite_unif_flags ()) l occs in
     cl_rewrite_clause_strat true strat clause
-and cl_rewrite_clause l left2right occs clause gl =
+and cl_rewrite_clause l left2right occs clause =
   let name = "cl_rewrite_clause" in
   let _ = Timer.start_timer name in
   try
-    let result = cl_rewrite_clause_ORIG l left2right occs clause gl in
+    let result = cl_rewrite_clause_ORIG l left2right occs clause in
     let _ = Timer.stop_timer name in
     result
   with exn ->
@@ -2162,11 +2162,11 @@ let rec general_s_rewrite_ORIG cl l2r occs (c,l) ~new_goals =
       tclFAIL 0 (str"setoid rewrite failed: " ++ e)
     | e -> Proofview.tclZERO ~info e)
   end }
-and general_s_rewrite cl l2r occs (c,l) ~new_goals gl =
+and general_s_rewrite cl l2r occs (c,l) ~new_goals =
   let name = "general_s_rewrite" in
   let _ = Timer.start_timer name in
   try
-    let result = general_s_rewrite_ORIG cl l2r occs (c,l) ~new_goals gl in
+    let result = general_s_rewrite_ORIG cl l2r occs (c,l) ~new_goals in
     let _ = Timer.stop_timer name in
     result
   with exn ->
