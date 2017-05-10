@@ -360,7 +360,8 @@ let push_rel_context_to_named_context env sigma typ =
     let (subst, vsubst, _, env) =
       Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context sigma d acc)
         (rel_context env) ~init:(empty_csubst, [], avoid, named_context env) in
-    (val_of_named_context env, subst2 subst vsubst typ, inst_rels@inst_vars, subst, vsubst)
+    let val_env = val_of_named_context env in
+    (val_env, subst2 subst vsubst typ, inst_rels@inst_vars, subst, vsubst)
 
 (*------------------------------------*
  * Entry points to define new evars   *
