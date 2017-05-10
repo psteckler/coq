@@ -52,7 +52,7 @@ let _ = Goptions.declare_bool_option {
   Goptions.optwrite = (fun a -> debug_unification:=a);
 }
 
-let occur_meta_or_undefined_evar evd c =
+let rec occur_meta_or_undefined_evar_ORIG evd c =
   let rec occrec c = match kind_of_term c with
     | Meta _ -> raise Occur
     | Evar (ev,args) ->
@@ -62,8 +62,18 @@ let occur_meta_or_undefined_evar evd c =
         | Evar_empty -> raise Occur)
     | _ -> Constr.iter occrec c
   in try occrec c; false with Occur | Not_found -> true
-
-let occur_meta_evd sigma mv c =
+and occur_meta_or_undefined_evar evd c =
+  let name = "occur_meta_or_undefined_evar" in
+  let _ = Timer.start_timer name in
+  try
+    let result = occur_meta_or_undefined_evar_ORIG evd c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
+let rec occur_meta_evd_ORIG sigma mv c =
   let rec occrec c =
     (* Note: evars are not instantiated by terms with metas *)
     let c = whd_evar sigma (whd_meta sigma c) in
@@ -71,11 +81,21 @@ let occur_meta_evd sigma mv c =
     | Meta mv' when Int.equal mv mv' -> raise Occur
     | _ -> Constr.iter occrec c
   in try occrec c; false with Occur -> true
+and occur_meta_evd sigma mv c =
+  let name = "occur_meta_evd" in
+  let _ = Timer.start_timer name in
+  try
+    let result = occur_meta_evd_ORIG sigma mv c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (* if lname_typ is [xn,An;..;x1,A1] and l is a list of terms,
    gives [x1:A1]..[xn:An]c' such that c converts to ([x1:A1]..[xn:An]c' l) *)
 
-let abstract_scheme env evd c l lname_typ =
+let rec abstract_scheme_ORIG env evd c l lname_typ =
   List.fold_left2
     (fun (t,evd) (locc,a) decl ->
        let open Context.Rel.Declaration in
@@ -93,10 +113,20 @@ let abstract_scheme env evd c l lname_typ =
     (c,evd)
     (List.rev l)
     lname_typ
-
+and abstract_scheme env evd c l lname_typ =
+  let name = "abstract_scheme" in
+  let _ = Timer.start_timer name in
+  try
+    let result = abstract_scheme_ORIG env evd c l lname_typ in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
 (* Precondition: resulting abstraction is expected to be of type [typ] *)
 
-let abstract_list_all env evd typ c l =
+let rec abstract_list_all_ORIG env evd typ c l =
   let ctxt,_ = splay_prod_n env evd (List.length l) typ in
   let l_with_all_occs = List.map (function a -> (LikeFirst,a)) l in
   let p,evd = abstract_scheme env evd c l_with_all_occs ctxt in
@@ -108,11 +138,31 @@ let abstract_list_all env evd typ c l =
     | Type_errors.TypeError (env',x) ->
         error_cannot_find_well_typed_abstraction env evd p l (Some (env',x)) in
   evd,(p,typp)
-
-let set_occurrences_of_last_arg args =
+and abstract_list_all env evd typ c l =
+  let name = "abstract_list_all" in
+  let _ = Timer.start_timer name in
+  try
+    let result = abstract_list_all_ORIG env evd typ c l in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
+let rec set_occurrences_of_last_arg_ORIG args =
   Some AllOccurrences :: List.tl (Array.map_to_list (fun _ -> None) args)
+and set_occurrences_of_last_arg args =
+  let name = "set_occurrences_of_last_arg" in
+  let _ = Timer.start_timer name in
+  try
+    let result = set_occurrences_of_last_arg_ORIG args in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let abstract_list_all_with_dependencies env evd typ c l =
+let rec abstract_list_all_with_dependencies_ORIG env evd typ c l =
   let evd = Sigma.Unsafe.of_evar_map evd in
   let Sigma (ev, evd, _) = new_evar env evd typ in
   let evd = Sigma.to_evar_map evd in
@@ -127,7 +177,17 @@ let abstract_list_all_with_dependencies env evd typ c l =
       evd, p
   else error_cannot_find_well_typed_abstraction env evd 
     (nf_evar evd c) l None
-
+and abstract_list_all_with_dependencies env evd typ c l =
+  let name = "abstract_list_all_with_dependencies" in
+  let _ = Timer.start_timer name in
+  try
+    let result = abstract_list_all_with_dependencies_ORIG env evd typ c l in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
 (**)
 
 (* A refinement of [conv_pb]: the integers tells how many arguments
@@ -146,16 +206,26 @@ let extract_instance_status = function
   | CUMUL -> add_type_status (IsSubType, IsSuperType)
   | CONV -> add_type_status (Conv, Conv)
 
-let rec subst_meta_instances bl c =
+let rec subst_meta_instances_ORIG bl c =
   match kind_of_term c with
     | Meta i ->
       let select (j,_,_) = Int.equal i j in
       (try pi2 (List.find select bl) with Not_found -> c)
     | _ -> Constr.map (subst_meta_instances bl) c
-
+and subst_meta_instances bl c =
+  let name = "subst_meta_instances" in
+  let _ = Timer.start_timer name in
+  try
+    let result = subst_meta_instances_ORIG bl c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+       
 (** [env] should be the context in which the metas live *)
 
-let pose_all_metas_as_evars env evd t =
+let rec pose_all_metas_as_evars_ORIG env evd t =
   let evdref = ref evd in
   let rec aux t = match kind_of_term t with
   | Meta mv ->
@@ -173,8 +243,18 @@ let pose_all_metas_as_evars env evd t =
   let c = aux t in
   (* side-effect *)
   (!evdref, c)
+and pose_all_metas_as_evars env evd t =
+  let name = "pose_all_metas_as_evars" in
+  let _ = Timer.start_timer name in
+  try
+    let result = pose_all_metas_as_evars_ORIG env evd t in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let solve_pattern_eqn_array (env,nb) f l c (sigma,metasubst,evarsubst) =
+let rec solve_pattern_eqn_array_ORIG (env,nb) f l c (sigma,metasubst,evarsubst) =
   match kind_of_term f with
     | Meta k ->
 	(* We enforce that the Meta does not depend on the [nb]
@@ -191,7 +271,17 @@ let solve_pattern_eqn_array (env,nb) f l c (sigma,metasubst,evarsubst) =
 	let sigma,c = pose_all_metas_as_evars env' sigma c in
 	sigma,metasubst,(env,ev,solve_pattern_eqn env l c)::evarsubst
     | _ -> assert false
-
+and solve_pattern_eqn_array (env,nb) f l c (sigma,metasubst,evarsubst) =
+  let name = "solve_pattern_eqn_array" in
+  let _ = Timer.start_timer name in
+  try
+    let result = solve_pattern_eqn_array_ORIG (env,nb) f l c (sigma,metasubst,evarsubst) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+       
 let push d (env,n) = (push_rel_assum d env,n+1)
 
 (*******************************)
@@ -463,28 +553,57 @@ type key =
   | IsKey of CClosure.table_key
   | IsProj of projection * constr
 
-let expand_table_key env = function
+let rec expand_table_key_ORIG env = function
   | ConstKey cst -> constant_opt_value_in env cst
   | VarKey id -> (try named_body id env with Not_found -> None)
   | RelKey _ -> None
-
-let unfold_projection env p stk =
+and expand_table_key env arg =
+  let name = "expand_table_key" in
+  let _ = Timer.start_timer name in
+  try
+    let result = expand_table_key_ORIG env arg in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+     
+let rec unfold_projection_ORIG env p stk =
   (match try Some (lookup_projection p env) with Not_found -> None with
   | Some pb -> 
     let s = Stack.Proj (pb.Declarations.proj_npars, pb.Declarations.proj_arg, 
 			p, Cst_stack.empty) in
       s :: stk
   | None -> assert false)
+and unfold_projection env p stk =
+  let name = "unfold_projection" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unfold_projection_ORIG env p stk in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let expand_key ts env sigma = function
+let rec expand_key_ORIG ts env sigma = function
   | Some (IsKey k) -> expand_table_key env k
   | Some (IsProj (p, c)) -> 
     let red = Stack.zip (fst (whd_betaiota_deltazeta_for_iota_state ts env sigma
                                Cst_stack.empty (c, unfold_projection env p [])))
     in if Term.eq_constr (mkProj (p, c)) red then None else Some red
   | None -> None
+and expand_key ts env sigma arg = 
+  let name = "expand_key" in
+  let _ = Timer.start_timer name in
+  try
+    let result = expand_key_ORIG ts env sigma arg in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-  
 type unirec_flags = {
   at_top: bool;
   with_types: bool;
@@ -494,7 +613,7 @@ type unirec_flags = {
 let subterm_restriction opt flags =
   not opt.at_top && flags.restrict_conv_on_strict_subterms
 
-let key_of env b flags f =
+let rec key_of_ORIG env b flags f =
   if subterm_restriction b flags then None else
   match kind_of_term f with
   | Const (cst, u) when is_transparent env (ConstKey cst) &&
@@ -509,7 +628,17 @@ let key_of env b flags f =
        (Cpred.mem (Projection.constant p) (snd flags.modulo_delta))) ->
     Some (IsProj (p, c))
   | _ -> None
-  
+and key_of env b flags f =
+  let name = "key_of" in
+  let _ = Timer.start_timer name in
+  try
+    let result = key_of_ORIG env b flags f in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+
 
 let translate_key = function
   | ConstKey (cst,u) -> ConstKey cst
@@ -520,7 +649,7 @@ let translate_key = function
   | IsKey k -> translate_key k    
   | IsProj (c, _) -> ConstKey (Projection.constant c)
   
-let oracle_order env cf1 cf2 =
+let rec oracle_order_ORIG env cf1 cf2 =
   match cf1 with
   | None ->
       (match cf2 with
@@ -540,7 +669,17 @@ let oracle_order env cf1 cf2 =
 	| _ ->
           Some (Conv_oracle.oracle_order (fun x -> x)
 		  (Environ.oracle env) false (translate_key k1) (translate_key k2))
-
+and oracle_order env cf1 cf2 =
+  let name = "oracle_order" in
+  let _ = Timer.start_timer name in
+  try
+    let result = oracle_order_ORIG env cf1 cf2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+	    
 let is_rigid_head flags t =
   match kind_of_term t with
   | Const (cst,u) -> not (Cpred.mem cst (snd flags.modulo_delta))
@@ -549,14 +688,25 @@ let is_rigid_head flags t =
   | Fix _ | CoFix _ -> true
   | _ -> false
 
-let force_eqs c = 
+let rec force_eqs_ORIG c = 
   Universes.Constraints.fold
     (fun ((l,d,r) as c) acc -> 
       let c' = if d == Universes.ULub then (l,Universes.UEq,r) else c in
 	Universes.Constraints.add c' acc) 
     c Universes.Constraints.empty
+and force_eqs c = 
+  let name = "force_eqs" in
+  let _ = Timer.start_timer name in
+  try
+    let result = force_eqs_ORIG c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let constr_cmp pb sigma flags t u =
+
+let rec constr_cmp_ORIG pb sigma flags t u =
   let b, cstrs = 
     if pb == Reduction.CONV then Universes.eq_constr_universes t u
     else Universes.leq_constr_universes t u
@@ -570,10 +720,30 @@ let constr_cmp pb sigma flags t u =
 	  with Univ.UniverseInconsistency _ -> sigma, false
 	else sigma, false
     else sigma, b
-    
-let do_reduce ts (env, nb) sigma c =
+and constr_cmp pb sigma flags t u =
+  let name = "constr_cmp" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = constr_cmp_ORIG pb sigma flags t u in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+
+let rec do_reduce_ORIG ts (env, nb) sigma c =
   Stack.zip (fst (whd_betaiota_deltazeta_for_iota_state
 		  ts env sigma Cst_stack.empty (c, Stack.empty)))
+and do_reduce ts (env, nb) sigma c =
+  let name = "do_reduce" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = do_reduce_ORIG ts (env, nb) sigma c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let use_full_betaiota flags =
   flags.modulo_betaiota && Flags.version_strictly_greater Flags.V8_3
@@ -583,7 +753,7 @@ let isAllowedEvar flags c = match kind_of_term c with
   | _ -> false
 
 
-let subst_defined_metas_evars (bl,el) c =
+let rec subst_defined_metas_evars_ORIG (bl,el) c =
   let rec substrec c = match kind_of_term c with
     | Meta i ->
       let select (j,_,_) = Int.equal i j in
@@ -594,8 +764,18 @@ let subst_defined_metas_evars (bl,el) c =
        with Not_found -> Constr.map substrec c)
     | _ -> Constr.map substrec c
   in try Some (substrec c) with Not_found -> None
+and subst_defined_metas_evars (bl,el) c =
+  let name = "subst_defined_metas_evars" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = subst_defined_metas_evars_ORIG (bl,el) c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let check_compatibility env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
+let rec check_compatibility_ORIG env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
   match subst_defined_metas_evars (metasubst,[]) tyM with
   | None -> sigma
   | Some m ->
@@ -607,9 +787,18 @@ let check_compatibility env pbty flags (sigma,metasubst,evarsubst) tyM tyN =
 	if b then sigma
 	else error_cannot_unify env sigma (m,n)
     else sigma
+and check_compatibility env flags (sigma,metasubst,evarsubst) tyM tyN =
+  let name = "check_compatibility" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = check_compatibility_ORIG env flags (sigma,metasubst,evarsubst) tyM tyN in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-
-let rec is_neutral env ts t =
+let rec is_neutral_ORIG env ts t =
   let (f, l) = decompose_appvect t in
     match kind_of_term f with
     | Const (c, u) ->
@@ -625,8 +814,18 @@ let rec is_neutral env ts t =
     | Case (_, p, c, cl) -> is_neutral env ts c
     | Proj (p, c) -> is_neutral env ts c
     | _ -> false
-
-let is_eta_constructor_app env ts f l1 term =
+and is_neutral env ts t =
+  let name = "rec" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = is_neutral_ORIG env ts t in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+       
+let rec is_eta_constructor_app_ORIG env ts f l1 term =
   match kind_of_term f with
   | Construct (((_, i as ind), j), u) when i == 0 && j == 1 ->
     let mib = lookup_mind (fst ind) env in
@@ -637,8 +836,18 @@ let is_eta_constructor_app env ts f l1 term =
 	is_neutral env ts term
       | _ -> false)
   | _ -> false
-
-let eta_constructor_app env f l1 term =
+and is_eta_constructor_app env ts f l1 term =
+  let name = "is_eta_constructor_app" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = is_eta_constructor_app_ORIG env ts f l1 term in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+     
+let rec eta_constructor_app_ORIG env f l1 term =
   match kind_of_term f with
   | Construct (((_, i as ind), j), u) ->
     let mib = lookup_mind (fst ind) env in
@@ -651,9 +860,19 @@ let eta_constructor_app env f l1 term =
 	  l1', l2
       | _ -> assert false)
   | _ -> assert false
+and eta_constructor_app env f l1 term =
+  let name = "eta_constructor_app" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = eta_constructor_app_ORIG env f l1 term in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb flags m n =
-  let rec unirec_rec (curenv,nb as curenvnb) pb opt ((sigma,metasubst,evarsubst) as substn) curm curn =
+let rec unify_0_with_initial_metas_ORIG (sigma,ms,es as subst) conv_at_top env cv_pb flags m n =
+  let rec unirec_rec_ORIG (curenv,nb as curenvnb) pb opt ((sigma,metasubst,evarsubst) as substn) curm curn =
     let cM = Evarutil.whd_head_evar sigma curm
     and cN = Evarutil.whd_head_evar sigma curn in
     let () = 
@@ -833,8 +1052,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
 
 	| _ ->
           unify_not_same_head curenvnb pb opt substn cM cN
+  and unirec_rec (curenv,nb as curenvnb) pb opt ((sigma,metasubst,evarsubst) as substn) curm curn =
+    let name = "unirec_rec" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = unirec_rec_ORIG curenvnb pb opt substn curm curn in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
 
-  and unify_app_pattern dir curenvnb pb opt substn cM f1 l1 cN f2 l2 =
+  and unify_app_pattern_ORIG dir curenvnb pb opt substn cM f1 l1 cN f2 l2 =
     let f, l, t = if dir then f1, l1, cN else f2, l2, cM in
       match is_unification_pattern curenvnb sigma f (Array.to_list l) t with
       | None ->
@@ -846,8 +1075,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
 	| _ -> unify_not_same_head curenvnb pb opt substn cM cN)
       | Some l ->
 	solve_pattern_eqn_array curenvnb f l t substn
+  and unify_app_pattern dir curenvnb pb opt substn cM f1 l1 cN f2 l2 =
+    let name = "unify_app_pattern" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = unify_app_pattern_ORIG dir curenvnb pb opt substn cM f1 l1 cN f2 l2 in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
 
-  and unify_app (curenv, nb as curenvnb) pb opt (sigma, metas, evars as substn) cM f1 l1 cN f2 l2 =
+  and unify_app_ORIG (curenv, nb as curenvnb) pb opt (sigma, metas, evars as substn) cM f1 l1 cN f2 l2 =
     try
       let needs_expansion p c' = 
 	match kind_of_term c' with
@@ -880,8 +1119,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
     try canonical_projections curenvnb pb opt cM cN substn
     with ex when precatchable_exception ex ->
     expand curenvnb pb {opt with with_types = false} substn cM f1 l1 cN f2 l2
-
-  and unify_same_proj (curenv, nb as curenvnb) cv_pb opt substn c1 c2 =
+  and unify_app (curenv, nb as curenvnb) pb opt (sigma, metas, evars as substn) cM f1 l1 cN f2 l2 =
+    let name = "unify_app" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = unify_app_ORIG curenvnb pb opt substn cM f1 l1 cN f2 l2 in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
+      
+  and unify_same_proj_ORIG (curenv, nb as curenvnb) cv_pb opt substn c1 c2 =
     let substn = unirec_rec curenvnb CONV opt substn c1 c2 in
       try (* Force unification of the types to fill in parameters *)
 	let ty1 = get_type_of curenv ~lax:true sigma c1 in
@@ -893,8 +1142,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
 	      modulo_betaiota = true }
 	    ty1 ty2
       with RetypeError _ -> substn
-
-  and unify_not_same_head curenvnb pb opt (sigma, metas, evars as substn) cM cN =
+  and unify_same_proj (curenv, nb as curenvnb) cv_pb opt substn c1 c2 =
+    let name = "unify_same_proj" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = unify_same_proj_ORIG curenvnb cv_pb opt substn c1 c2 in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
+	
+  and unify_not_same_head_ORIG curenvnb pb opt (sigma, metas, evars as substn) cM cN =
     try canonical_projections curenvnb pb opt cM cN substn
     with ex when precatchable_exception ex ->
     let sigma', b = constr_cmp cv_pb sigma flags cM cN in
@@ -907,8 +1166,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
 	let (f2,l2) =
 	  match kind_of_term cN with App (f,l) -> (f,l) | _ -> (cN,[||]) in
 	  expand curenvnb pb opt substn cM f1 l1 cN f2 l2
-
-  and reduce curenvnb pb opt (sigma, metas, evars as substn) cM cN =
+  and unify_not_same_head curenvnb pb opt (sigma, metas, evars as substn) cM cN =
+    let name = "unify_not_same_head" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = unify_not_same_head_ORIG curenvnb pb opt substn cM cN in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
+	    
+  and reduce_ORIG curenvnb pb opt (sigma, metas, evars as substn) cM cN =
     if use_full_betaiota flags && not (subterm_restriction opt flags) then
       let cM' = do_reduce flags.modulo_delta curenvnb sigma cM in
 	if not (Term.eq_constr cM cM') then
@@ -919,8 +1188,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
 	      unirec_rec curenvnb pb opt substn cM cN'
 	    else error_cannot_unify (fst curenvnb) sigma (cM,cN)
     else error_cannot_unify (fst curenvnb) sigma (cM,cN)
-	    
-  and expand (curenv,_ as curenvnb) pb opt (sigma,metasubst,evarsubst as substn) cM f1 l1 cN f2 l2 =
+  and reduce curenvnb pb opt (sigma, metas, evars as substn) cM cN =
+    let name = "reduce" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = reduce_ORIG curenvnb pb opt substn cM cN in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
+      
+  and expand_ORIG (curenv,_ as curenvnb) pb opt (sigma,metasubst,evarsubst as substn) cM f1 l1 cN f2 l2 =
     let res =
       (* Try full conversion on meta-free terms. *)
       (* Back to 1995 (later on called trivial_unify in 2002), the
@@ -993,8 +1272,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
                       (whd_betaiotazeta sigma (mkApp(c,l1))) cN
 		| None ->
 		    error_cannot_unify curenv sigma (cM,cN)))
+  and expand (curenv,_ as curenvnb) pb opt (sigma,metasubst,evarsubst as substn) cM f1 l1 cN f2 l2 =
+    let name = "expand" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = expand_ORIG curenvnb pb opt substn cM f1 l1 cN f2 l2 in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
 
-  and canonical_projections (curenv, _ as curenvnb) pb opt cM cN (sigma,_,_ as substn) =
+  and canonical_projections_ORIG (curenv, _ as curenvnb) pb opt cM cN (sigma,_,_ as substn) =
     let f1 () =
       if isApp cM then
 	let f1l1 = whd_nored_state sigma (cM,Stack.empty) in
@@ -1019,8 +1308,18 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
 		  solve_canonical_projection curenvnb pb opt cN f2l2 cM f1l1 substn
 	      else error_cannot_unify (fst curenvnb) sigma (cM,cN)
 	  else error_cannot_unify (fst curenvnb) sigma (cM,cN)
+  and canonical_projections (curenv, _ as curenvnb) pb opt cM cN (sigma,_,_ as substn) =
+    let name = "canonical_projections" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = canonical_projections_ORIG curenvnb pb opt cM cN substn in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
 
-  and solve_canonical_projection curenvnb pb opt cM f1l1 cN f2l2 (sigma,ms,es) =
+  and solve_canonical_projection_ORIG curenvnb pb opt cM f1l1 cN f2l2 (sigma,ms,es) =
     let (ctx,t,c,bs,(params,params1),(us,us2),(ts,ts1),c1,(n,t2)) =
       try Evarconv.check_conv_record (fst curenvnb) sigma f1l1 f2l2
       with Not_found -> error_cannot_unify (fst curenvnb) sigma (cM,cN)
@@ -1053,6 +1352,16 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
       with Invalid_argument "Reductionops.Stack.fold2" ->
 	error_cannot_unify (fst curenvnb) sigma (cM,cN)
     else error_cannot_unify (fst curenvnb) sigma (cM,cN)
+  and solve_canonical_projection curenvnb pb opt cM f1l1 cN f2l2 (sigma,ms,es) =
+    let name = "solve_canonical_projection" in 
+    let _ = Timer.start_timer name in
+    try
+      let result = solve_canonical_projection_ORIG curenvnb pb opt cM f1l1 cN f2l2 (sigma,ms,es) in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
   in
     
   if !debug_unification then Feedback.msg_debug (str "Starting unification");
@@ -1084,14 +1393,23 @@ let rec unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb 
     let e = CErrors.push e in
     if !debug_unification then Feedback.msg_debug (str "Leaving unification with failure");
     iraise e
-
+and unify_0_with_initial_metas (sigma,ms,es as subst) conv_at_top env cv_pb flags m n =
+  let name = "unify_0_with_initial_metas" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_0_with_initial_metas_ORIG subst conv_at_top env cv_pb flags m n in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let unify_0 env sigma = unify_0_with_initial_metas (sigma,[],[]) true env
 
 let left = true
 let right = false
 
-let rec unify_with_eta keptside flags env sigma c1 c2 =
+let rec unify_with_eta_ORIG keptside flags env sigma c1 c2 =
 (* Question: try whd_all on ci if not two lambdas? *)
   match kind_of_term c1, kind_of_term c2 with
   | (Lambda (na,t1,c1'), Lambda (_,t2,c2')) ->
@@ -1112,7 +1430,17 @@ let rec unify_with_eta keptside flags env sigma c1 c2 =
       (mkApp (lift 1 c1,[|mkRel 1|])) c2'
   | _ ->
     (keptside,unify_0 env sigma CONV flags c1 c2)
-    
+and unify_with_eta keptside flags env sigma c1 c2 =
+  let name = "unify_with_eta" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_with_eta_ORIG keptside flags env sigma c1 c2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+      
 (* We solved problems [?n =_pb u] (i.e. [u =_(opp pb) ?n]) and [?n =_pb' u'],
    we now compute the problem on [u =? u'] and decide which of u or u' is kept
 
@@ -1120,7 +1448,7 @@ let rec unify_with_eta keptside flags env sigma c1 c2 =
    in the case u' <= ?n <= u)
  *)
     
-let merge_instances env sigma flags st1 st2 c1 c2 =
+let rec merge_instances_ORIG env sigma flags st1 st2 c1 c2 =
   match (opp_status st1, st2) with
   | (Conv, Conv) ->
       let side = left (* arbitrary choice, but agrees with compatibility *) in
@@ -1146,6 +1474,16 @@ let merge_instances env sigma flags st1 st2 c1 c2 =
     (try (left, IsSuperType, unify_0 env sigma CUMUL flags c1 c2)
      with e when CErrors.noncritical e ->
        (right, IsSuperType, unify_0 env sigma CUMUL flags c2 c1))
+and merge_instances env sigma flags st1 st2 c1 c2 =
+  let name = "merge_instances" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = merge_instances_ORIG env sigma flags st1 st2 c1 c2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
     
 (* Unification
  *
@@ -1196,7 +1534,7 @@ let merge_instances env sigma flags st1 st2 c1 c2 =
  * close it off.  But this might not always work,
  * since other metavars might also need to be resolved. *)
 
-let applyHead env (type r) (evd : r Sigma.t) n c =
+let rec applyHead env (type r) (evd : r Sigma.t) n c =
   let rec apprec : type s. _ -> _ -> _ -> (r, s) Sigma.le -> s Sigma.t -> (constr, r) Sigma.sigma =
     fun n c cty p evd ->
     if Int.equal n 0 then
@@ -1209,22 +1547,52 @@ let applyHead env (type r) (evd : r Sigma.t) n c =
       | _ -> error "Apply_Head_Then"
   in
     apprec n c (Typing.unsafe_type_of env (Sigma.to_evar_map evd) c) Sigma.refl evd
-
-let is_mimick_head ts f =
+and applyHead env evd n c =
+  let name = "applyHead" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = applyHead_ORIG env evd n c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+      
+let rec is_mimick_head_ORIG ts f =
   match kind_of_term f with
   | Const (c,u) -> not (CClosure.is_transparent_constant ts c)
   | Var id -> not (CClosure.is_transparent_variable ts id)
   | (Rel _|Construct _|Ind _) -> true
   | _ -> false
+and is_mimick_head ts f =
+  let name = "is_mimick_head" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = is_mimick_head_ORIG ts f in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let try_to_coerce env evd c cty tycon =
+let rec try_to_coerce_ORIG env evd c cty tycon =
   let j = make_judge c cty in
   let (evd',j') = inh_conv_coerce_rigid_to true Loc.ghost env evd j tycon in
   let evd' = Evarconv.solve_unif_constraints_with_heuristics env evd' in
   let evd' = Evd.map_metas_fvalue (nf_evar evd') evd' in
     (evd',j'.uj_val)
+and try_to_coerce env evd c cty tycon =
+  let name = "try_to_coerce" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = try_to_coerce_ORIG env evd c cty tycon in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let w_coerce_to_type env evd c cty mvty =
+let rec w_coerce_to_type_ORIG env evd c cty mvty =
   let evd,tycon = pose_all_metas_as_evars env evd mvty in
     try try_to_coerce env evd c cty tycon
     with e when precatchable_exception e ->
@@ -1233,28 +1601,58 @@ let w_coerce_to_type env evd c cty mvty =
        fst (nat,nat)) and stops while it could have seen that it is rigid *)
     let cty = Tacred.hnf_constr env evd cty in
       try_to_coerce env evd c cty tycon
-	  
+and w_coerce_to_type env evd c cty mvty =
+  let name = "w_coerce_to_type" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_coerce_to_type_ORIG env evd c cty mvty in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+	
 let w_coerce env evd mv c =
   let cty = get_type_of env evd c in
   let mvty = Typing.meta_type evd mv in
   w_coerce_to_type env evd c cty mvty
 
-let unify_to_type env sigma flags c status u =
+let rec unify_to_type_ORIG env sigma flags c status u =
   let sigma, c = refresh_universes (Some false) env sigma c in
   let t = get_type_of env sigma (nf_meta sigma c) in
   let t = nf_betaiota sigma (nf_meta sigma t) in
     unify_0 env sigma CUMUL flags t u
+and unify_to_type env sigma flags c status u =
+  let name = "unify_to_type" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_to_type_ORIG env sigma flags c status u in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let unify_type env sigma flags mv status c =
+let rec unify_type_ORIG env sigma flags mv status c =
   let mvty = Typing.meta_type sigma mv in
   let mvty = nf_meta sigma mvty in
     unify_to_type env sigma 
       (set_flags_for_type flags)
       c status mvty
+and unify_type env sigma flags mv status c =
+  let name = "unify_type" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_type_ORIG env sigma flags mv status c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (* Move metas that may need coercion at the end of the list of instances *)
 
-let order_metas metas =
+let rec order_metas_ORIG metas =
   let rec order latemetas = function
   | [] -> List.rev latemetas
   | (_,_,(_,CoerceToType) as meta)::metas ->
@@ -1262,10 +1660,20 @@ let order_metas metas =
   | (_,_,(_,_) as meta)::metas ->
     meta :: order latemetas metas
   in order [] metas
-
+and order_metas metas =
+  let name = "order_metas" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = order_metas_ORIG metas in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
 (* Solve an equation ?n[x1=u1..xn=un] = t where ?n is an evar *)
 
-let solve_simple_evar_eqn ts env evd ev rhs =
+let rec solve_simple_evar_eqn_ORIG ts env evd ev rhs =
   match solve_simple_eqn (Evarconv.evar_conv_x ts) env evd (None,ev,rhs) with
   | UnifFailure (evd,reason) ->
       error_cannot_unify env evd ~reason (mkEvar ev,rhs);
@@ -1275,13 +1683,23 @@ let solve_simple_evar_eqn ts env evd ev rhs =
        Evarconv.solve_unif_constraints_with_heuristics env evd
      else (* solve_simple_eqn calls reconsider_unif_constraints itself *)
        evd
-
+and solve_simple_evar_eqn ts env evd ev rhs =
+  let name = "solve_simple_evar_eqn" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = solve_simple_evar_eqn_ORIG ts env evd ev rhs in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+	 
 (* [w_merge env sigma b metas evars] merges common instances in metas
    or in evars, possibly generating new unification problems; if [b]
    is true, unification of types of metas is required *)
 
-let w_merge env with_types flags (evd,metas,evars) =
-  let rec w_merge_rec evd metas evars eqns =
+let rec w_merge_ORIG env with_types flags (evd,metas,evars) =
+  let rec w_merge_rec_ORIG evd metas evars eqns =
 
     (* Process evars *)
     match evars with
@@ -1368,8 +1786,18 @@ let w_merge env with_types flags (evd,metas,evars) =
 	       | [] -> evd
 	       | ((mv,status,c),e)::_ -> raise e)
 	in process_eqns [] eqns
-	      
-  and mimick_undefined_evar evd flags hdc nargs sp =
+  and w_merge_rec evd metas evars eqns =
+    let name = "w_merge_rec" in
+    let _ = Timer.start_timer name in
+    try
+      let result = w_merge_rec_ORIG evd metas evars eqns in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
+	
+  and mimick_undefined_evar_ORIG evd flags hdc nargs sp =
     let ev = Evd.find_undefined evd sp in
     let sp_env = Global.env_of_context ev.evar_hyps in
     let evd = Sigma.Unsafe.of_evar_map evd in
@@ -1381,15 +1809,35 @@ let w_merge env with_types flags (evd,metas,evars) =
     let evd''' = w_merge_rec evd'' mc ec [] in
     if evd' == evd'''
     then Evd.define sp c evd'''
-    else Evd.define sp (Evarutil.nf_evar evd''' c) evd''' in
-
-  let check_types evd = 
+    else Evd.define sp (Evarutil.nf_evar evd''' c) evd'''
+  and mimick_undefined_evar evd flags hdc nargs sp =
+    let name = "mimick_undefined_evar" in
+    let _ = Timer.start_timer name in
+    try
+      let result = mimick_undefined_evar_ORIG evd flags hdc nargs sp in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
+  in
+  let rec check_types_ORIG evd = 
     let metas = Evd.meta_list evd in
     let eqns = List.fold_left (fun acc (mv, b) ->
       match b with
       | Clval (n, (t, (c, TypeNotProcessed)), v) -> (mv, c, t.rebus) :: acc
       | _ -> acc) [] metas
     in w_merge_rec evd [] [] eqns
+  and check_types evd = 
+    let name = "check_types" in
+    let _ = Timer.start_timer name in
+    try
+      let result = check_types_ORIG evd in
+      let _ = Timer.stop_timer name in
+      result
+    with exn ->
+      let _ = Timer.stop_timer name in
+      raise exn
   in
   let res =  (* merge constraints *)
     w_merge_rec evd (order_metas metas)
@@ -1397,10 +1845,30 @@ let w_merge env with_types flags (evd,metas,evars) =
                 (List.rev evars) []
   in
   if with_types then check_types res else res
+and w_merge env with_types flags (evd,metas,evars) =
+  let name = "w_merge" in
+  let _ = Timer.start_timer name in
+  try
+    let result = w_merge_ORIG env with_types flags (evd,metas,evars) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let w_unify_meta_types env ?(flags=default_unify_flags ()) evd =
+let rec w_unify_meta_types_ORIG env ?(flags=default_unify_flags ()) evd =
   let metas,evd = retract_coercible_metas evd in
   w_merge env true flags.merge_unify_flags (evd,metas,[])
+and w_unify_meta_types env ?(flags=default_unify_flags ()) evd =
+  let name = "w_unify_meta_types" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_meta_types_ORIG env ~flags evd in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (* [w_unify env evd M N]
    performs a unification of M and N, generating a bunch of
@@ -1412,10 +1880,20 @@ let w_unify_meta_types env ?(flags=default_unify_flags ()) evd =
    [clenv_typed_unify M N clenv] expects in addition that expected
    types of metavars are unifiable with the types of their instances    *)
 
-let head_app sigma m =
+let rec head_app_ORIG sigma m =
   fst (whd_nored_state sigma (m, Stack.empty))
-
-let check_types env flags (sigma,_,_ as subst) m n =
+and head_app sigma m =
+  let name = "head_app" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = head_app_ORIG sigma m in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
+let rec check_types_ORIG env flags (sigma,_,_ as subst) m n =
   if isEvar_or_Meta (head_app sigma m) then
     unify_0_with_initial_metas subst true env CUMUL
       flags
@@ -1427,14 +1905,36 @@ let check_types env flags (sigma,_,_ as subst) m n =
       (get_type_of env sigma m)
       (get_type_of env sigma n)
   else subst
+    and check_types env flags (sigma,_,_ as subst) m n =
+  let name = "check_types" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = check_types_ORIG env flags subst m n in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let try_resolve_typeclasses env evd flag m n =
+
+let rec try_resolve_typeclasses_ORIG env evd flag m n =
   if flag then
     Typeclasses.resolve_typeclasses ~filter:Typeclasses.no_goals ~split:false
       ~fail:true env evd
   else evd
+    and try_resolve_typeclasses env evd flag m n =
+  let name = "try_resolve_typeclasses" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = try_resolve_typeclasses_ORIG env evd flag m n in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let w_unify_core_0 env evd with_types cv_pb flags m n =
+
+let rec w_unify_core_0_ORIG env evd with_types cv_pb flags m n =
   let (mc1,evd') = retract_coercible_metas evd in
   let (sigma,ms,es) = check_types env (set_flags_for_type flags.core_unify_flags) (evd',mc1,[]) m n in
   let subst2 =
@@ -1443,10 +1943,30 @@ let w_unify_core_0 env evd with_types cv_pb flags m n =
   in
   let evd = w_merge env with_types flags.merge_unify_flags subst2 in
   try_resolve_typeclasses env evd flags.resolve_evars m n
+and w_unify_core_0 env evd with_types cv_pb flags m n =
+  let name = "w_unify_core_0" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_core_0_ORIG env evd with_types cv_pb flags m n in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
+let rec w_typed_unify_ORIG env evd = w_unify_core_0 env evd true
+and w_typed_unify env evd = 
+  let name = "w_typed_unify" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_typed_unify_ORIG env evd in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let w_typed_unify env evd = w_unify_core_0 env evd true
-
-let w_typed_unify_array env evd flags f1 l1 f2 l2 =
+let rec w_typed_unify_array_ORIG env evd flags f1 l1 f2 l2 =
   let f1,l1,f2,l2 = adjust_app_array_size f1 l1 f2 l2 in
   let (mc1,evd') = retract_coercible_metas evd in
   let fold_subst subst m n = unify_0_with_initial_metas subst true env CONV flags.core_unify_flags  m n in
@@ -1455,12 +1975,22 @@ let w_typed_unify_array env evd flags f1 l1 f2 l2 =
   let evd = w_merge env true flags.merge_unify_flags subst in
   try_resolve_typeclasses env evd flags.resolve_evars
                           (mkApp(f1,l1)) (mkApp(f2,l2))
-
+and w_typed_unify_array env evd flags f1 l1 f2 l2 =
+  let name = "w_typed_unify_array" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_typed_unify_array_ORIG env evd flags f1 l1 f2 l2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
 (* takes a substitution s, an open term op and a closed term cl
    try to find a subterm of cl which matches op, if op is just a Meta
    FAIL because we cannot find a binding *)
 
-let iter_fail f a =
+let rec iter_fail_ORIG f a =
   let n = Array.length a in
   let rec ffail i =
     if Int.equal i n then error "iter_fail"
@@ -1468,26 +1998,67 @@ let iter_fail f a =
       try f a.(i)
       with ex when precatchable_exception ex -> ffail (i+1)
   in ffail 0
+and iter_fail f a =
+  let name = "iter_fail" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = iter_fail_ORIG f a in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+
 
 (* make_abstraction: a variant of w_unify_to_subterm which works on
    contexts, with evars, and possibly with occurrences *)
 
-let indirectly_dependent c d decls =
+let rec indirectly_dependent_ORIG c d decls =
   not (isVar c) &&
     (* This test is not needed if the original term is a variable, but
        it is needed otherwise, as e.g. when abstracting over "2" in
        "forall H:0=2, H=H:>(0=1+1) -> 0=2." where there is now obvious
        way to see that the second hypothesis depends indirectly over 2 *)
     List.exists (fun d' -> dependent_in_decl (mkVar (get_id d')) d) decls
+and indirectly_dependent c d decls =
+  let name = "indirectly_dependent" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = indirectly_dependent_ORIG c d decls in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let indirect_dependency d decls =
+let rec indirect_dependency_ORIG d decls =
   decls  |>  List.filter (fun d' -> dependent_in_decl (mkVar (get_id d')) d)  |>  List.hd  |>  get_id
-
-let finish_evar_resolution ?(flags=Pretyping.all_and_fail_flags) env current_sigma (pending,c) =
+and indirect_dependency d decls =
+  let name = "indirect_dependency" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = indirect_dependency_ORIG d decls in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+      
+let rec finish_evar_resolution_ORIG ?(flags=Pretyping.all_and_fail_flags) env current_sigma (pending,c) =
   let current_sigma = Sigma.to_evar_map current_sigma in
   let sigma = Pretyping.solve_remaining_evars flags env current_sigma pending in
   let sigma, subst = nf_univ_variables sigma in
   Sigma.Unsafe.of_pair (subst_univs_constr subst (nf_evar sigma c), sigma)
+and finish_evar_resolution ?(flags=Pretyping.all_and_fail_flags) env current_sigma (pending,c) =
+  let name = "finish_evar_resolution" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = finish_evar_resolution_ORIG ~flags env current_sigma (pending,c) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let default_matching_core_flags sigma =
   let ts = Names.full_transparent_state in {
@@ -1531,7 +2102,7 @@ let default_matching_flags (sigma,_) =
 
 exception PatternNotFound
 
-let make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
+let rec make_pattern_test_ORIG from_prefix_of_ind is_correct_type env sigma (pending,c) =
   let flags =
     if from_prefix_of_ind then
       let flags = default_matching_flags pending in
@@ -1578,14 +2149,36 @@ let make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
      let c = applist (nf_evar sigma (local_strong whd_meta sigma c),l) in
      let univs, subst = nf_univ_variables sigma in
      Some (sigma,subst_univs_constr subst c))
+and make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
+  let name = "make_pattern_test" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = make_pattern_test_ORIG from_prefix_of_ind is_correct_type env sigma (pending,c) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let make_eq_test env evd c =
+let rec make_eq_test_ORIG env evd c =
   let out cstr =
     match cstr.last_found with None -> None | _ -> Some (cstr.testing_state, c)
   in
   (make_eq_univs_test env evd c, out)
+and make_eq_test env evd c =
+  let name = "make_eq_test" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = make_eq_test_ORIG env evd c in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let make_abstraction_core name (test,out) env sigma c ty occs check_occs concl =
+
+    
+let rec make_abstraction_core_ORIG name (test,out) env sigma c ty occs check_occs concl =
   let id =
     let t = match ty with Some t -> t | None -> get_type_of env sigma c in
     let x = id_of_name_using_hdchar (Global.env()) t name in
@@ -1639,7 +2232,18 @@ let make_abstraction_core name (test,out) env sigma c ty occs check_occs concl =
   with
     SubtermUnificationError e ->
       raise (PretypeError (env,sigma,CannotUnifyOccurrences e))
+and make_abstraction_core namearg (test,out) env sigma c ty occs check_occs concl =
+  let name = "make_abstraction_core" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = make_abstraction_core_ORIG namearg (test,out) env sigma c ty occs check_occs concl in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
+	
 (** [make_abstraction] is the main entry point to abstract over a term
     or pattern at some occurrences; it returns:
     - the id used for the abstraction
@@ -1662,7 +2266,7 @@ type 'r abstraction_result =
     Context.Named.Declaration.t list * Names.Id.t option *
     types * (constr, 'r) Sigma.sigma option
 
-let make_abstraction env evd ccl abs =
+let rec make_abstraction_ORIG env evd ccl abs =
   let evd = Sigma.to_evar_map evd in
   match abs with
   | AbstractPattern (from_prefix,check,name,c,occs,check_occs) ->
@@ -1673,8 +2277,18 @@ let make_abstraction env evd ccl abs =
       make_abstraction_core name
         (make_eq_test env evd c)
         env evd c ty occs check_occs ccl
+and make_abstraction env evd ccl abs =
+  let name = "make_abstraction" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = make_abstraction_ORIG env evd ccl abs in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let keyed_unify env evd kop = 
+let rec keyed_unify_ORIG env evd kop = 
   if not !keyed_unification then fun cl -> true
   else 
     match kop with 
@@ -1685,11 +2299,21 @@ let keyed_unify env evd kop =
 	  match kc with
 	  | None -> false
 	  | Some kc -> Keys.equiv_keys kop kc
+and keyed_unify env evd kop = 
+  let name = "keyed_unify" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = keyed_unify_ORIG env evd kop in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (* Tries to find an instance of term [cl] in term [op].
    Unifies [cl] to every subterm of [op] until it finds a match.
    Fails if no match is found *)
-let w_unify_to_subterm env evd ?(flags=default_unify_flags ()) (op,cl) =
+let rec w_unify_to_subterm_ORIG env evd ?(flags=default_unify_flags ()) (op,cl) =
   let bestexn = ref None in
   let kop = Keys.constr_key op in
   let rec matchrec cl =
@@ -1760,11 +2384,21 @@ let w_unify_to_subterm env evd ?(flags=default_unify_flags ()) (op,cl) =
     match !bestexn with
     | None -> raise (PretypeError (env,evd,NoOccurrenceFound (op, None)))
     | Some e -> raise e
-
+and w_unify_to_subterm env evd ?(flags=default_unify_flags ()) (op,cl) =
+  let name = "w_unify_to_subterm" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_to_subterm_ORIG env evd ~flags (op,cl) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+       
 (* Tries to find all instances of term [cl] in term [op].
    Unifies [cl] to every subterm of [op] and return all the matches.
    Fails if no match is found *)
-let w_unify_to_subterm_all env evd ?(flags=default_unify_flags ()) (op,cl) =
+let rec w_unify_to_subterm_all_ORIG env evd ?(flags=default_unify_flags ()) (op,cl) =
   let return a b =
     let (evd,c as a) = a () in
       if List.exists (fun (evd',c') -> Term.eq_constr c c') b then b else a :: b
@@ -1826,8 +2460,18 @@ let w_unify_to_subterm_all env evd ?(flags=default_unify_flags ()) (op,cl) =
   | [] ->
     raise (PretypeError (env,evd,NoOccurrenceFound (op, None)))
   | _ -> res
+and w_unify_to_subterm_all env evd ?(flags=default_unify_flags ()) (op,cl) =
+  let name = "w_unify_to_subterm_all" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_to_subterm_all_ORIG env evd ~flags (op,cl) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let w_unify_to_subterm_list env evd flags hdmeta oplist t =
+let rec w_unify_to_subterm_list_ORIG env evd flags hdmeta oplist t =
   List.fold_right
     (fun op (evd,l) ->
       let op = whd_meta evd op in
@@ -1871,8 +2515,19 @@ let w_unify_to_subterm_list env evd flags hdmeta oplist t =
 	  else (evd',cl::l))
     oplist
     (evd,[])
+and w_unify_to_subterm_list env evd flags hdmeta oplist t =
+  let name = "w_unify_to_subterm_list" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify_to_subterm_list_ORIG env evd flags hdmeta oplist t in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let secondOrderAbstraction env evd flags typ (p, oplist) =
+
+let rec secondOrderAbstraction_ORIG env evd flags typ (p, oplist) =
   (* Remove delta when looking for a subterm *)
   let flags = { flags with core_unify_flags = flags.subterm_unify_flags } in
   let (evd',cllist) = w_unify_to_subterm_list env evd flags p oplist typ in
@@ -1884,18 +2539,49 @@ let secondOrderAbstraction env evd flags typ (p, oplist) =
       (Evd.meta_name evd p) pred typp predtyp;
   w_merge env false flags.merge_unify_flags
           (evd',[p,pred,(Conv,TypeProcessed)],[])
-
-let secondOrderDependentAbstraction env evd flags typ (p, oplist) =
+and secondOrderAbstraction env evd flags typ (p, oplist) =
+  let name = "secondOrderAbstraction" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = secondOrderAbstraction_ORIG env evd flags typ (p, oplist) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
+let rec secondOrderDependentAbstraction_ORIG env evd flags typ (p, oplist) =
   let typp = Typing.meta_type evd p in
   let evd, pred = abstract_list_all_with_dependencies env evd typp typ oplist in
   w_merge env false flags.merge_unify_flags
           (evd,[p,pred,(Conv,TypeProcessed)],[])
+and secondOrderDependentAbstraction env evd flags typ (p, oplist) =
+  let name = "secondOrderDependentAbstraction" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = secondOrderDependentAbstraction_ORIG env evd flags typ (p, oplist) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 
-let secondOrderAbstractionAlgo dep =
+      
+let rec secondOrderAbstractionAlgo_ORIG dep =
   if dep then secondOrderDependentAbstraction else secondOrderAbstraction
+and secondOrderAbstractionAlgo dep =
+  let name = "secondOrderAbstractionAlgo" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = secondOrderAbstractionAlgo_ORIG dep in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
-let w_unify2 env evd flags dep cv_pb ty1 ty2 =
+let rec w_unify2_ORIG env evd flags dep cv_pb ty1 ty2 =
   let c1, oplist1 = whd_nored_stack evd ty1 in
   let c2, oplist2 = whd_nored_stack evd ty2 in
   match kind_of_term c1, kind_of_term c2 with
@@ -1906,7 +2592,17 @@ let w_unify2 env evd flags dep cv_pb ty1 ty2 =
         (* Find the predicate *)
         secondOrderAbstractionAlgo dep env evd flags ty1 (p2, oplist2)
     | _ -> error "w_unify2"
-
+and w_unify2 env evd flags dep cv_pb ty1 ty2 =
+  let name = "w_unify2" in 
+  let _ = Timer.start_timer name in
+  try
+    let result = w_unify2_ORIG env evd flags dep cv_pb ty1 ty2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+       
 (* The unique unification algorithm works like this: If the pattern is
    flexible, and the goal has a lambda-abstraction at the head, then
    we do a first-order unification.
@@ -1927,7 +2623,7 @@ let w_unify2 env evd flags dep cv_pb ty1 ty2 =
    Before, second-order was used if the type of Meta(1) and [x:A]t was
    convertible and first-order otherwise. But if failed if e.g. the type of
    Meta(1) had meta-variables in it. *)
-let w_unify env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
+let rec w_unify_ORIG env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
   let hd1,l1 = decompose_appvect (whd_nored evd ty1) in
   let hd2,l2 = decompose_appvect (whd_nored evd ty2) in
   let is_empty1 = Array.is_empty l1 in
@@ -1961,7 +2657,19 @@ let w_unify env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
 
       (* General case: try first order *)
       | _ -> w_typed_unify env evd cv_pb flags ty1 ty2
-
+and w_unify env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
+  let name = "w_unify" in 
+  let start_tm = Timer.start_timer name in
+  try
+    let result = w_unify_ORIG env evd cv_pb ~flags ty1 ty2 in
+    let _ = Timer.stop_timer name in
+    let _ = Hashtbl.add Timer.w_unify_tbl start_tm (env,ty1,ty2) in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    let _ = Hashtbl.add Timer.w_unify_tbl start_tm (env,ty1,ty2) in
+    raise exn
+	 
 (* Profiling *)
 
 let w_unify env evd cv_pb flags ty1 ty2 =

@@ -499,7 +499,7 @@ let decompose_app_rel env evd t =
   let () = if not (Reduction.is_arity env ty) then error_no_relation () in
   (rel, t1, t2)
 
-let decompose_applied_relation env sigma (c,l) =
+let rec decompose_applied_relation_ORIG env sigma (c,l) =
   let open Context.Rel.Declaration in
   let ctype = Retyping.get_type_of env sigma c in
   let find_rel ty =
@@ -526,6 +526,16 @@ let decompose_applied_relation env sigma (c,l) =
 	match find_rel (it_mkProd_or_LetIn t' (List.map (fun (n,t) -> LocalAssum (n, t)) ctx)) with
 	| Some c -> c
 	| None -> error "Cannot find an homogeneous relation to rewrite."
+and decompose_applied_relation env sigma (c,l) =
+  let name = "decompose_applied_relation" in
+  let _ = Timer.start_timer name in
+  try
+    let result = decompose_applied_relation_ORIG env sigma (c,l) in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let rewrite_db = "rewrite"
 
@@ -704,7 +714,7 @@ let symmetry env sort rew =
   { rew with rew_from = rew.rew_to; rew_to = rew.rew_from; rew_prf; rew_evars; }
 
 (* Matching/unifying the rewriting rule against [t] *)
-let unify_eqn (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
+let rec unify_eqn_ORIG (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
   try
     let left = if l2r then c1 else c2 in
     let sigma = Unification.w_unify ~flags env sigma CONV left t in
@@ -726,6 +736,16 @@ let unify_eqn (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) 
   with 
   | e when Class_tactics.catchable e -> None
   | Reduction.NotConvertible -> None
+and unify_eqn (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t =
+  let name = "unify_eqn" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_eqn_ORIG (car, rel, prf, c1, c2, holes, sort) l2r flags env (sigma, cstrs) by t in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let unify_abs (car, rel, prf, c1, c2) l2r sort env (sigma, cstrs) t =
   try
@@ -1452,12 +1472,22 @@ let rewrite_with l2r flags c occs : strategy = { strategy =
     ((), res)
 					       }
 
-let apply_strategy (s : strategy) env unfresh concl (prop, cstr) evars =
+let rec apply_strategy_ORIG (s : strategy) env unfresh concl (prop, cstr) evars =
   let ty = Retyping.get_type_of env (goalevars evars) concl in
   let _, res = s.strategy { state = () ; env ; unfresh ;
 			    term1 = concl ; ty1 = ty ;
 			    cstr = (prop, Some cstr) ; evars } in
   res
+and apply_strategy (s : strategy) env unfresh concl (prop, cstr) evars =
+  let name = "apply_strategy" in
+  let _ = Timer.start_timer name in
+  try
+    let result = apply_strategy_ORIG s env unfresh concl (prop, cstr) evars in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let solve_constraints env (evars,cstrs) =
   let filter = all_constraints cstrs in
@@ -1559,7 +1589,7 @@ let assert_replacing id newt tac =
 let newfail n s = 
   Proofview.tclZERO (Refiner.FailError (n, lazy s))
 
-let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
+let rec cl_rewrite_clause_newtac_ORIG ?abs ?origsigma ~progress strat clause =
   let open Proofview.Notations in
   (** For compatibility *)
   let beta_red _ sigma c = Reductionops.nf_betaiota sigma c in
@@ -1629,12 +1659,22 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
     | PretypeError (env, evd, (UnsatisfiableConstraints _ as e)) ->
       raise (RewriteFailure (Himsg.explain_pretype_error env evd e))
   end }
+and cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
+  let name = "cl_rewrite_clause_newtac" in
+  let _ = Timer.start_timer name in
+  try
+    let result = cl_rewrite_clause_newtac_ORIG ?abs ?origsigma ~progress strat clause in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let tactic_init_setoid () = 
   try init_setoid (); Proofview.tclUNIT ()
   with e when CErrors.noncritical e -> Tacticals.New.tclFAIL 0 (str"Setoid library not loaded")
 
-let cl_rewrite_clause_strat progress strat clause =
+let rec cl_rewrite_clause_strat_ORIG progress strat clause =
   tactic_init_setoid () <*>
   (if progress then Proofview.tclPROGRESS else fun x -> x)
    (Proofview.tclOR
@@ -1645,11 +1685,31 @@ let cl_rewrite_clause_strat progress strat clause =
        | Refiner.FailError (n, pp) -> 
 	  tclFAIL n (str"setoid rewrite failed: " ++ Lazy.force pp)
        | e -> Proofview.tclZERO ~info e))
-
+and cl_rewrite_clause_strat progress strat clause =
+  let name = "cl_rewrite_clause_strat" in
+  let _ = Timer.start_timer name in
+  try
+    let result = cl_rewrite_clause_strat_ORIG progress strat clause in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
 (** Setoid rewriting when called with "setoid_rewrite" *)
-let cl_rewrite_clause l left2right occs clause =
+let rec cl_rewrite_clause_ORIG l left2right occs clause =
   let strat = rewrite_with left2right (general_rewrite_unif_flags ()) l occs in
     cl_rewrite_clause_strat true strat clause
+and cl_rewrite_clause l left2right occs clause gl =
+  let name = "cl_rewrite_clause" in
+  let _ = Timer.start_timer name in
+  try
+    let result = cl_rewrite_clause_ORIG l left2right occs clause gl in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (** Setoid rewriting when called with "rewrite_strat" *)
 let cl_rewrite_clause_strat strat clause =
@@ -2078,7 +2138,7 @@ let general_rewrite_flags = { under_lambdas = false; on_morphisms = true }
 (* let cl_rewrite_clause_tac = Profile.profile5 rewriteclaustac_key cl_rewrite_clause_tac *)
 
 (** Setoid rewriting when called with "rewrite" *)
-let general_s_rewrite cl l2r occs (c,l) ~new_goals =
+let rec general_s_rewrite_ORIG cl l2r occs (c,l) ~new_goals =
   Proofview.Goal.nf_enter { enter = begin fun gl ->
   let abs, evd, res, sort = get_hyp gl (c,l) cl l2r in
   let unify env evars t = unify_abs res l2r sort env evars t in
@@ -2102,7 +2162,17 @@ let general_s_rewrite cl l2r occs (c,l) ~new_goals =
       tclFAIL 0 (str"setoid rewrite failed: " ++ e)
     | e -> Proofview.tclZERO ~info e)
   end }
-
+and general_s_rewrite cl l2r occs (c,l) ~new_goals gl =
+  let name = "general_s_rewrite" in
+  let _ = Timer.start_timer name in
+  try
+    let result = general_s_rewrite_ORIG cl l2r occs (c,l) ~new_goals gl in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
 let _ = Hook.set Equality.general_setoid_rewrite_clause general_s_rewrite
 
 (** [setoid_]{reflexivity,symmetry,transitivity} tactics *)

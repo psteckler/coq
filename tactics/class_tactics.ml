@@ -232,17 +232,37 @@ let e_give_exact flags poly (c,clenv) gl =
   let t1 = pf_unsafe_type_of gl c in
   Proofview.V82.of_tactic (Clenvtac.unify ~flags t1 <*> exact_no_check c) gl
 
-let unify_e_resolve poly flags = { enter = begin fun gls (c,_,clenv) ->
+let rec unify_e_resolve_ORIG poly flags = { enter = begin fun gls (c,_,clenv) ->
   let clenv', c = connect_hint_clenv poly c clenv gls in
   let clenv' = Tacmach.New.of_old (clenv_unique_resolver ~flags clenv') gls in
     Clenvtac.clenv_refine true ~with_classes:false clenv'
   end }
-
-let unify_resolve poly flags = { enter = begin fun gls (c,_,clenv) ->
+and unify_e_resolve poly flags = 
+  let name = "unify_e_resolve" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_e_resolve_ORIG poly flags in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+  
+let rec unify_resolve_ORIG poly flags = { enter = begin fun gls (c,_,clenv) ->
   let clenv', _ = connect_hint_clenv poly c clenv gls in
   let clenv' = Tacmach.New.of_old (clenv_unique_resolver ~flags clenv') gls in
     Clenvtac.clenv_refine false ~with_classes:false clenv'
   end }
+and unify_resolve poly flags = 
+  let name = "unify_resolve" in
+  let _ = Timer.start_timer name in
+  try
+    let result = unify_resolve_ORIG poly flags in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 (** Application of a lemma using [refine] instead of the old [w_unify] *)
 let unify_resolve_refine poly flags gls ((c, t, ctx),n,clenv) =
@@ -1541,11 +1561,21 @@ let resolve_typeclass_evars debug depth unique env evd filter split fail =
     resolve_all_evars debug depth unique env
                       (initial_select_evars filter) evd split fail
 
-let solve_inst env evd filter unique split fail =
+let rec solve_inst_ORIG env evd filter unique split fail =
   resolve_typeclass_evars
     (get_typeclasses_debug ())
     (get_typeclasses_depth ())
     unique env evd filter split fail
+and solve_inst env evd filter unique split fail =
+  let name = "solve_inst" in
+  let _ = Timer.start_timer name in
+  try
+    let result = solve_inst_ORIG env evd filter unique split fail in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 let _ =
   Hook.set Typeclasses.solve_all_instances_hook solve_inst

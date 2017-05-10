@@ -134,7 +134,7 @@ si après Intros la conclusion matche le pattern.
 
 (* conclPattern doit échouer avec error car il est rattraper par tclFIRST *)
 
-let conclPattern concl pat tac =
+let rec conclPattern_ORIG concl pat tac =
   let constr_bindings env sigma =
     match pat with
     | None -> Proofview.tclUNIT Id.Map.empty
@@ -161,7 +161,17 @@ let conclPattern concl pat tac =
      | GenArg (Glbwit wit, tac) ->
       Ftactic.run (Geninterp.interp wit ist tac) (fun _ -> Proofview.tclUNIT ())
   end }
-
+and conclPattern concl pat tac =
+  let name = "conclPatter" in
+  let _ = Timer.start_timer name in
+  try
+    let result = conclPattern_ORIG concl pat tac in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
+    
 (***********************************************************)
 (** A debugging / verbosity framework for trivial and auto *)
 (***********************************************************)

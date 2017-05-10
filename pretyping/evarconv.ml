@@ -310,7 +310,7 @@ let exact_ise_stack2 env evd f sk1 sk2 =
     ise_stack2 evd (List.rev sk1) (List.rev sk2)
   else UnifFailure (evd, (* Dummy *) NotSameHead)
 
-let rec evar_conv_x ts env evd pbty term1 term2 =
+let rec evar_conv_x_ORIG ts env evd pbty term1 term2 =
   let term1 = whd_head_evar evd term1 in
   let term2 = whd_head_evar evd term2 in
   (* Maybe convertible but since reducing can erase evars which [evar_apprec]
@@ -359,6 +359,16 @@ let rec evar_conv_x ts env evd pbty term1 term2 =
 	      | x -> x)
           | _ -> default ()
         end
+and evar_conv_x ts env evd pbty term1 term2 =
+  let name = "evar_conv_x" in
+  let _ = Timer.start_timer name in
+  try
+    let result = evar_conv_x_ORIG ts env evd pbty term1 term2 in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
 
 and evar_eqappr_x ?(rhs_is_already_stuck = false) ts env evd pbty
     ((term1,sk1 as appr1),csts1) ((term2,sk2 as appr2),csts2) =

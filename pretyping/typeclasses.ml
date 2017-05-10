@@ -546,7 +546,17 @@ let solve_all_instances env evd filter unique split fail =
 (* let solve_classeskey = Profile.declare_profile "solve_typeclasses" *)
 (* let solve_problem = Profile.profile5 solve_classeskey solve_problem *)
 
-let resolve_typeclasses ?(fast_path = true) ?(filter=no_goals) ?(unique=get_typeclasses_unique_solutions ())
+let rec resolve_typeclasses_ORIG ?(fast_path = true) ?(filter=no_goals) ?(unique=get_typeclasses_unique_solutions ())
     ?(split=true) ?(fail=true) env evd =
   if fast_path && not (has_typeclasses filter evd) then evd
   else solve_all_instances env evd filter unique split fail
+and resolve_typeclasses ?(filter=no_goals) ?(unique=get_typeclasses_unique_solutions ()) =
+  let name = "resolve_typeclasses" in
+  let _ = Timer.start_timer name in
+  try
+    let result = resolve_typeclasses_ORIG ~filter ~unique in
+    let _ = Timer.stop_timer name in
+    result
+  with exn ->
+    let _ = Timer.stop_timer name in
+    raise exn
