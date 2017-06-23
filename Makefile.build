@@ -198,6 +198,8 @@ BOOTCOQC=$(TIMER) $(COQTOPBEST) -boot $(COQOPTS) -compile
 LOCALINCLUDES=$(addprefix -I ,$(SRCDIRS))
 MLINCLUDES=$(LOCALINCLUDES) -I $(MYCAMLP4LIB)
 
+
+CAMLFLAGS += -ppx bin/ppx_no_unit_tests
 OCAMLC := $(OCAMLFIND) ocamlc $(CAMLFLAGS)
 OCAMLOPT := $(OCAMLFIND) opt $(CAMLFLAGS)
 
@@ -490,6 +492,12 @@ $(COQTEX): $(call bestobj, tools/coq_tex.cmo)
 $(COQWC): $(call bestobj, tools/coqwc.cmo)
 	$(SHOW)'OCAMLBEST -o $@'
 	$(HIDE)$(call bestocaml, -package str)
+
+$(PPX_UNIT_TESTS): ppx/ppx_unit_tests.ml
+	$(SHOW)$(OCAMLFIND) opt -package oUnit -package compiler-libs.common -linkpkg -o $@ $<
+
+$(PPX_NO_UNIT_TESTS): ppx/ppx_no_unit_tests.ml
+	$(SHOW)$(OCAMLFIND) opt -package compiler-libs.common -linkpkg -o $@ $<
 
 COQDOCCMO:=clib/clib.cma lib/lib.cma $(addprefix tools/coqdoc/, \
   cdglobals.cmo alpha.cmo index.cmo tokens.cmo output.cmo cpretty.cmo main.cmo )

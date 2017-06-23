@@ -27,6 +27,7 @@ COQMAKE_ONE_TIME_FILE:=tools/make-one-time-file.py
 COQTIME_FILE_MAKER:=tools/TimeFileMaker.py
 COQMAKE_BOTH_TIME_FILES:=tools/make-both-time-files.py
 COQMAKE_BOTH_SINGLE_TIMING_FILES:=tools/make-both-single-timing-files.py
+PPX_UNIT_TESTS:=bin/unittests
 
 TOOLS:=$(COQDEP) $(COQMAKEFILE) $(GALLINA) $(COQTEX) $(COQWC) $(COQDOC) $(COQC)\
 	$(COQWORKMGR)
