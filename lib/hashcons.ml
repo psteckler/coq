@@ -64,9 +64,10 @@ module Make (X : HashconsedType) : (S with type t = X.t and type u = X.u) =
       let tab = Htbl.create 97 in
       (tab, u)
 
-    let hcons (tab, u) x =
-      let y = X.hashcons u x in
-      Htbl.repr (X.hash y) y tab
+    (* disable generic hash-consing *)	
+    let hcons (tab, u) x = x
+    (* let y = X.hashcons u x in
+       Htbl.repr (X.hash y) y tab *)
 
     let stats (tab, _) = Htbl.stats tab
 

@@ -189,9 +189,9 @@ module Make (E : EqType) =
     in
     loop 0
 
-  let repr h d t =
-    let ifnotfound index = add_aux t Weak.set (Some d) h index; d in
-    find_or h t d ifnotfound
+  let repr h d t = d
+   (* let ifnotfound index = add_aux t Weak.set (Some d) h index; d in
+      find_or h t d ifnotfound *)
 
   let stats t =
     let fold accu bucket = max (count_bucket 0 bucket 0) accu in
