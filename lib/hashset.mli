@@ -35,7 +35,7 @@ module type S = sig
   (** [create n] creates a fresh hashset with initial size [n]. *)
   val clear : t -> unit
   (** Clear the contents of a hashset. *)
-  val repr : int -> elt -> t -> elt
+  val repr : ?bypass:bool -> int -> elt -> t -> elt
   (** [repr key constr set] uses [key] to look for [constr]
       in the hashet [set]. If [constr] is in [set], returns the
       specific representation that is stored in [set]. Otherwise,

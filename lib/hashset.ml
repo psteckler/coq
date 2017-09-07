@@ -31,7 +31,7 @@ module type S = sig
   type t
   val create : int -> t
   val clear : t -> unit
-  val repr : int -> elt -> t -> elt
+  val repr : ?bypass:bool -> int -> elt -> t -> elt
   val stats : t -> statistics
 end
 
@@ -189,9 +189,11 @@ module Make (E : EqType) =
     in
     loop 0
 
-  let repr h d t =
-    let ifnotfound index = add_aux t Weak.set (Some d) h index; d in
-    find_or h t d ifnotfound
+  let repr ?bypass:(byp=true) h d t =
+    if byp then d
+    else
+      let ifnotfound index = add_aux t Weak.set (Some d) h index; d in
+      find_or h t d ifnotfound
 
   let stats t =
     let fold accu bucket = max (count_bucket 0 bucket 0) accu in
