@@ -58,6 +58,7 @@ struct
     let hashcons hc = function
     | Nil -> Nil
     | Cons (x, h, l) -> Cons (hc x, h, l)
+    let use_hashcons = true
   end
   module Hcons = Hashcons.Make(Self)
   let hcons = Hashcons.simple_hcons Hcons.generate Hcons.hcons M.hcons
@@ -227,6 +228,7 @@ module Level = struct
     let hashcons () x =
       let data' = RawLevel.hcons x.data in
       if x.data == data' then x else { x with data = data' }
+    let use_hashcons = true
   end
 
   let hcons =
@@ -319,6 +321,7 @@ struct
 	| (b,n), (b',n') -> b == b' && n == n'
 
       let hash (x, n) = n + Level.hash x
+      let use_hashcons = true
 
     end
 
@@ -1119,6 +1122,7 @@ struct
 	let h = !accu land 0x3FFFFFFF in
 	  h
 
+    let use_hashcons = true
   end
 
   module HInstance = Hashcons.Make(HInstancestruct)

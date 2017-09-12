@@ -29,6 +29,7 @@ module type HashconsedType =
     val hashcons :  u -> t -> t
     val eq : t -> t -> bool
     val hash : t -> int
+    val use_hashcons : bool
   end
 
 (** The output is a function [generate] such that [generate args] creates a
@@ -65,8 +66,11 @@ module Make (X : HashconsedType) : (S with type t = X.t and type u = X.u) =
       (tab, u)
 
     let hcons (tab, u) x =
-      let y = X.hashcons u x in
-      Htbl.repr (X.hash y) y tab
+      if X.use_hashcons then
+	let y = X.hashcons u x in
+	Htbl.repr (X.hash y) y tab
+      else
+	x
 
     let stats (tab, _) = Htbl.stats tab
 
@@ -122,6 +126,7 @@ module Hlist (D:HashedType) =
         let accu = Hashset.Combine.combine (D.hash x) accu in
         hash accu l
       let hash l = hash 0 l
+      let use_hashcons = true
     end)
 
 (* string *)
@@ -145,6 +150,8 @@ module Hstring = Make(
     let hash s =
       let len = String.length s in
       hash len s 0 0
+
+    let use_hashcons = false
   end)
 
 (* Obj.t *)
@@ -183,4 +190,5 @@ module Hobj = Make(
     let hashcons (hrec,_) = hash_obj hrec
     let eq = comp_obj
     let hash = Hashtbl.hash
+    let use_hashcons = true
   end)

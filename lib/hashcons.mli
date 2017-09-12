@@ -42,6 +42,7 @@ module type HashconsedType =
     (** A hash function passed to the underlying hashtable structure. [hash]
         should be compatible with [eq], i.e. if [eq x y = true] then
         [hash x = hash y]. *)
+    val use_hashcons : bool
   end
 
 module type S =

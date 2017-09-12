@@ -63,6 +63,7 @@ struct
   struct
     type t = string
     let compare = compare
+    let use_hashcons = true
   end
 
   module Set = Set.Make(Self)
@@ -126,6 +127,7 @@ struct
           | (Anonymous,Anonymous) -> true
           | _ -> false
       let hash = hash
+      let use_hashcons = true
     end
 
   module Hname = Hashcons.Make(Self_Hashcons)
@@ -244,6 +246,7 @@ struct
         (x == y) ||
         (Int.equal n1 n2 && s1 == s2 && dir1 == dir2)
       let hash = hash
+      let use_hashcons = true
     end
 
   module HashMBId = Hashcons.Make(Self_Hashcons)
@@ -344,6 +347,7 @@ module ModPath = struct
       | MPdot (mod1,l1), MPdot (mod2,l2) -> l1 == l2 && equal mod1 mod2
       | _ -> false
     let hash = hash
+    let use_hashcons = true
   end
 
   module HashMP = Hashcons.Make(Self_Hashcons)
@@ -440,6 +444,7 @@ module KerName = struct
       kn1.modpath == kn2.modpath && kn1.dirpath == kn2.dirpath &&
         kn1.knlabel == kn2.knlabel
     let hash = hash
+    let use_hashcons = true
   end
 
   module HashKN = Hashcons.Make(Self_Hashcons)
@@ -578,6 +583,7 @@ module KerPair = struct
       | Same kn -> KerName.hash kn
       | Dual (knu, knc) ->
         Hashset.Combine.combine (KerName.hash knu) (KerName.hash knc)
+      let use_hashcons = true
     end
 
   module HashKP = Hashcons.Make(Self_Hashcons)
@@ -718,6 +724,7 @@ module Hind = Hashcons.Make(
     let hashcons hmind (mind, i) = (hmind mind, i)
     let eq (mind1,i1) (mind2,i2) = mind1 == mind2 && Int.equal i1 i2
     let hash = ind_hash
+    let use_hashcons = true
   end)
 
 module Hconstruct = Hashcons.Make(
@@ -727,6 +734,7 @@ module Hconstruct = Hashcons.Make(
     let hashcons hind (ind, j) = (hind ind, j)
     let eq (ind1, j1) (ind2, j2) = ind1 == ind2 && Int.equal j1 j2
     let hash = constructor_hash
+    let use_hashcons = true
   end)
 
 let hcons_con = Hashcons.simple_hcons Constant.HashKP.generate Constant.HashKP.hcons KerName.hcons
@@ -876,6 +884,7 @@ struct
       let eq ((c,b) as x) ((c',b') as y) =
         x == y || (c == c' && b == b')
       let hash = hash
+      let use_hashcons = true
     end
 
   module HashProjection = Hashcons.Make(Self_Hashcons)

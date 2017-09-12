@@ -104,6 +104,7 @@ module Hsorts =
         |_ -> false
 
       let hash = hash
+      let use_hashcons = true
     end)
 
 let hcons = Hashcons.simple_hcons Hsorts.generate Hsorts.hcons hcons_univ
