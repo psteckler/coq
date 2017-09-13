@@ -61,7 +61,7 @@ module Make (X : HashconsedType) : (S with type t = X.t and type u = X.u) =
     type table = (Htbl.t * u)
 
     let generate u =
-      let tab = Htbl.create 223 in
+      let tab = Htbl.create 571 in
       (tab, u)
 
     let hcons (tab, u) x =
