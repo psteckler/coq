@@ -98,7 +98,9 @@ struct
     | Anonymous, Name _ -> -1
     | Name _, Anonymous -> 1
 
-  let equal n1 n2 = match n1, n2 with
+  let equal n1 n2 =
+    n1 == n2 ||
+    match n1, n2 with
     | Anonymous, Anonymous -> true
     | Name id1, Name id2 -> String.equal id1 id2
     | _ -> false
@@ -408,6 +410,7 @@ module KerName = struct
         else ModPath.compare kn1.modpath kn2.modpath
 
   let equal kn1 kn2 =
+    kn1 == kn2 ||
     let h1 = kn1.refhash in
     let h2 = kn2.refhash in
     if 0 <= h1 && 0 <= h2 && not (Int.equal h1 h2) then false
