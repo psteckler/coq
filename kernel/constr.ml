@@ -981,6 +981,7 @@ struct
     let h4 = Array.fold_left combine 0 ci.ci_cstr_nargs in
     let h5 = hash_pp_info ci.ci_pp_info in
     combine5 h1 h2 h3 h4 h5
+  let use_hashcons = true
 end
 
 module Hcaseinfo = Hashcons.Make(CaseinfoHash)

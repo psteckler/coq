@@ -129,6 +129,7 @@ module Level = struct
     let hashcons () x =
       let data' = RawLevel.hcons x.data in
       if x.data == data' then x else { x with data = data' }
+    let use_hashcons = true
   end
 
   let hcons =
@@ -278,6 +279,7 @@ struct
 	| (b,n), (b',n') -> b == b' && n == n'
 
       let hash (x, n) = n + Level.hash x
+      let use_hashcons = true
 
     end
 
@@ -598,6 +600,7 @@ module Hconstraint =
       let eq (l1,k,l2) (l1',k',l2') =
 	l1 == l1' && k == k' && l2 == l2'
       let hash = Hashtbl.hash
+      let use_hashcons = true
     end)
 
 module Hconstraints =
@@ -612,6 +615,7 @@ module Hconstraints =
 	  (Constraint.elements s)
 	  (Constraint.elements s')
       let hash = Hashtbl.hash
+      let use_hashcons = true
     end)
 
 let hcons_constraint = Hashcons.simple_hcons Hconstraint.generate Hconstraint.hcons Level.hcons
@@ -788,7 +792,9 @@ struct
 	done;
 	(* [h] must be positive. *)
 	let h = !accu land 0x3FFFFFFF in
-	  h
+	h
+
+    let use_hashcons = true
   end
 
   module HInstance = Hashcons.Make(HInstancestruct)
@@ -1204,6 +1210,7 @@ module Huniverse_set =
       let eq s s' =
 	LSet.equal s s'
       let hash = Hashtbl.hash
+      let use_hashcons = true
     end)
 
 let hcons_universe_set = 
