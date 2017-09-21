@@ -66,8 +66,11 @@ module Make (X : HashconsedType) : (S with type t = X.t and type u = X.u) =
       (tab, u)
 
     let hcons (tab, u) x =
-      let y = X.hashcons u x in
-      Htbl.repr (X.hash y) y tab
+      if X.use_hashcons then
+	let y = X.hashcons u x in
+	Htbl.repr (X.hash y) y tab
+      else
+	x
 
     let stats (tab, _) = Htbl.stats tab
 
