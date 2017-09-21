@@ -126,7 +126,7 @@ module Hlist (D:HashedType) =
         let accu = Hashset.Combine.combine (D.hash x) accu in
         hash accu l
       let hash l = hash 0 l
-      let use_hashcons = true
+      let use_hashcons = false
     end)
 
 (* string *)
