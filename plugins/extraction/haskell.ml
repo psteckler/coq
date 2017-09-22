@@ -279,7 +279,7 @@ let pp_singleton kn packet =
 	 pp_comment (str "singleton inductive, whose constructor was " ++
 		     Id.print packet.ip_consnames.(0)))
 
-let pp_one_ind ip pl cv =
+let pp_one_ind ip ip_equiv pl cv =
   let pl = rename_tvars keywords pl in
   let pp_constructor (r,l) =
     (pp_global Cons r ++
@@ -289,15 +289,22 @@ let pp_one_ind ip pl cv =
       	       	prlist_with_sep
 		  (fun () -> (str " ")) (pp_type true pl) l))
   in
-  str (if Array.is_empty cv then "type " else "data ") ++
-  pp_global Type (IndRef ip) ++
-  prlist_strict (fun id -> str " " ++ pr_lower_id id) pl ++ str " =" ++
-  if Array.is_empty cv then str " () -- empty inductive"
-  else
-    (fnl () ++ str " " ++
-     v 0 (str "  " ++
-	  prvect_with_sep (fun () -> fnl () ++ str "| ") pp_constructor
-	    (Array.mapi (fun i c -> ConstructRef (ip,i+1),c) cv)))
+  match ip_equiv with
+  | NoEquiv,_ 
+  | RenEquiv _,_ ->
+     str (if Array.is_empty cv then "type " else "data ") ++
+	pp_global Type (IndRef ip) ++ 
+	prlist_strict (fun id -> str " " ++ pr_lower_id id) pl ++ str " =" ++
+	if Array.is_empty cv then str " () -- empty inductive"
+	else
+	  (fnl () ++ str " " ++
+	     v 0 (str "  " ++
+		    prvect_with_sep (fun () -> fnl () ++ str "| ") pp_constructor
+		    (Array.mapi (fun i c -> ConstructRef (ip,i+1),c) cv)))
+  | Equiv kn,i ->
+     let params = prlist_strict (fun id -> str " " ++ pr_lower_id id) pl in
+     str "type " ++ params ++ pp_global Type (IndRef ip) ++ str " = " ++
+       params ++ pp_global Type (IndRef (MutInd.make1 kn,i))
 
 let rec pp_ind first kn i ind =
   if i >= Array.length ind.ind_packets then
@@ -305,12 +312,13 @@ let rec pp_ind first kn i ind =
   else
     let ip = (kn,i) in
     let p = ind.ind_packets.(i) in
+    let ip_equiv = ind.ind_equiv, i in
     if is_custom (IndRef (kn,i)) then pp_ind first kn (i+1) ind
     else
       if p.ip_logical then
 	pp_logical_ind p ++ pp_ind first kn (i+1) ind
       else
-	pp_one_ind ip p.ip_vars p.ip_types ++ fnl () ++
+	pp_one_ind ip ip_equiv p.ip_vars p.ip_types ++ fnl () ++
 	pp_ind false kn (i+1) ind
 
 

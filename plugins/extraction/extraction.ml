@@ -364,7 +364,7 @@ and extract_really_ind env kn mib =
        When at toplevel of the monolithic case, we cannot do much
        (cf Vector and bug #2570) *)
     let equiv =
-      if lang () != Ocaml ||
+      if false (* lang () != Ocaml *) ||
 	 (not (modular ()) && at_toplevel (MutInd.modpath kn)) ||
 	 KerName.equal (MutInd.canonical kn) (MutInd.user kn)
       then
