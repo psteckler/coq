@@ -1,4 +1,4 @@
-(************************************************************************)
+>(************************************************************************)
 (*  v      *   The Coq Proof Assistant  /  The Coq Development Team     *)
 (* <O___,, *   INRIA - CNRS - LIX - LRI - PPS - Copyright 1999-2017     *)
 (*   \VV/  **************************************************************)
@@ -126,7 +126,7 @@ struct
           | (Anonymous,Anonymous) -> true
           | _ -> false
       let hash = hash
-      let use_hashcons = true
+      let use_hashcons = false
     end
 
   module Hname = Hashcons.Make(Self_Hashcons)
@@ -245,7 +245,7 @@ struct
         (x == y) ||
         (Int.equal n1 n2 && s1 == s2 && dir1 == dir2)
       let hash = hash
-      let use_hashcons = true
+      let use_hashcons = false
 	    
     end
 
@@ -347,7 +347,7 @@ module ModPath = struct
       | MPdot (mod1,l1), MPdot (mod2,l2) -> l1 == l2 && equal mod1 mod2
       | _ -> false
     let hash = hash
-    let use_hashcons = true
+    let use_hashcons = false
 
   end
 
@@ -445,7 +445,7 @@ module KerName = struct
       kn1.modpath == kn2.modpath && kn1.dirpath == kn2.dirpath &&
         kn1.knlabel == kn2.knlabel
     let hash = hash
-    let use_hashcons = true
+    let use_hashcons = false
 
   end
 
@@ -585,7 +585,7 @@ module KerPair = struct
       | Same kn -> KerName.hash kn
       | Dual (knu, knc) ->
          Hashset.Combine.combine (KerName.hash knu) (KerName.hash knc)
-      let use_hashcons = true
+      let use_hashcons = false
     end
 
   module HashKP = Hashcons.Make(Self_Hashcons)
@@ -726,7 +726,7 @@ module Hind = Hashcons.Make(
     let hashcons hmind (mind, i) = (hmind mind, i)
     let eq (mind1,i1) (mind2,i2) = mind1 == mind2 && Int.equal i1 i2
     let hash = ind_hash
-    let use_hashcons = true
+    let use_hashcons = false
   end)
 
 module Hconstruct = Hashcons.Make(
@@ -736,7 +736,7 @@ module Hconstruct = Hashcons.Make(
     let hashcons hind (ind, j) = (hind ind, j)
     let eq (ind1, j1) (ind2, j2) = ind1 == ind2 && Int.equal j1 j2
     let hash = constructor_hash
-    let use_hashcons = true
+    let use_hashcons = false
   end)
 
 let hcons_con = Hashcons.simple_hcons Constant.HashKP.generate Constant.HashKP.hcons KerName.hcons
@@ -886,7 +886,7 @@ struct
       let eq ((c,b) as x) ((c',b') as y) =
         x == y || (c == c' && b == b')
       let hash = hash
-      let use_hashcons = true
+      let use_hashcons = false
     end
 
   module HashProjection = Hashcons.Make(Self_Hashcons)
